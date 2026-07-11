@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Analyst - Real-Time Compliance</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Socket.IO CDN -->
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="brand">
+                <i class="fa-solid fa-gem brand-icon"></i>
+                <div class="brand-text">
+                    <h1>Face Analyst</h1>
+                    <span>MASKED FACE RECOGNITION</span>
+                </div>
+            </div>
+            
+            <ul class="nav-links">
+                <li class="active" data-target="camera-view">
+                    <i class="fa-solid fa-video"></i> Live Camera
+                </li>
+                <li data-target="register-view">
+                    <i class="fa-solid fa-user-plus"></i> Register User
+                </li>
+                <li data-target="directory-view">
+                    <i class="fa-solid fa-users"></i> User Directory
+                </li>
+                <li data-target="logs-view">
+                    <i class="fa-solid fa-shield-halved"></i> System Logs
+                </li>
+                <li data-target="settings-view">
+                    <i class="fa-solid fa-gear"></i> Settings
+                </li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="dot active" id="system-status-dot"></span>
+                    <span id="system-status-text">Connecting...</span>
+                </div>
+                <div class="powered-by">Powered by YuNet & SFace & WebSockets</div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="content-area">
+            
+            <!-- VIEW: CAMERA -->
+            <section id="camera-view" class="view active-view">
+                <header class="view-header">
+                    <h2>Real-Time Face Scanner</h2>
+                    <p>Webcam stream decoded on-the-fly via high-speed bidirectional WebSockets</p>
+                </header>
+                
+                <div class="camera-layout">
+                    <!-- Left: Video Feed Canvas -->
+                    <div class="video-container glass-panel">
+                        <div class="video-wrapper">
+                            <!-- Hidden HTML5 Video tag used for capturing browser stream -->
+                            <video id="webcam" width="640" height="480" autoplay playsinline style="display:none;"></video>
+                            <!-- The HUD image populated by SocketIO -->
+                            <img id="video-feed" src="" alt="Webcam feed initialization...">
+                            <div class="scan-line"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right: Info & Analytics Panel -->
+                    <div class="info-sidebar">
+                        <div class="glass-panel status-card">
+                            <h3>SYSTEM AUTHORIZATION</h3>
+                            <div id="auth-status-box" class="status-box">
+                                <span id="auth-status-text">STAND BY</span>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel stats-card">
+                            <h3>DETECTION STATISTICS</h3>
+                            <div class="stat-row">
+                                <span class="stat-label">Identity:</span>
+                                <span id="stat-name" class="stat-value">-</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Mask Status:</span>
+                                <span id="stat-mask" class="stat-value">-</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Sim Score:</span>
+                                <span id="stat-score" class="stat-value">0.000</span>
+                            </div>
+                        </div>
+
+                        <!-- Real-time Compliance Doughnut Chart -->
+                        <div class="glass-panel analytics-card">
+                            <h3>SESSION ANALYTICS</h3>
+                            <div class="chart-container" style="position: relative; height:120px; width:100%">
+                                <canvas id="complianceChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel directives-card">
+                            <h3>ACCESS DIRECTIVES</h3>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="strict-mode-toggle">
+                                <span class="slider"></span>
+                                <span class="toggle-label">Mandate Face Mask</span>
+                            </label>
+                            <p class="directive-desc">When enabled, unmasked faces will trigger warnings even if the user is registered.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: REGISTER -->
+            <section id="register-view" class="view hidden-view">
+                <header class="view-header">
+                    <h2>Enroll New Profile</h2>
+                    <p>Scan facial geometry to create a secure template database file.</p>
+                </header>
+                
+                <div class="register-layout">
+                    <div class="glass-panel form-panel">
+                        <h3>REGISTRATION METADATA</h3>
+                        <div class="input-group">
+                            <label for="reg-name">Full Name</label>
+                            <input type="text" id="reg-name" placeholder="Enter user's name">
+                        </div>
+                        <button id="btn-start-reg" class="btn-primary">Start Profile Acquisition</button>
+
+                        <div class="acquisition-state">
+                            <h4>ACQUISITION STATE</h4>
+                            <p id="reg-status-text" class="highlight-text">Stand by...</p>
+                            <div class="progress-bar-container">
+                                <div id="reg-progress-bar" class="progress-bar" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel instruction-panel">
+                        <h3>CALIBRATION GUIDELINES</h3>
+                        <ul class="guidelines-list">
+                            <li><i class="fa-solid fa-person"></i> Stand still facing the camera directly.</li>
+                            <li><i class="fa-solid fa-mask-face"></i> Make sure you are <strong>UNMASKED</strong> during registration.</li>
+                            <li><i class="fa-solid fa-lightbulb"></i> Ensure the room has balanced lighting.</li>
+                            <li><i class="fa-solid fa-camera"></i> The system will auto-capture 5 face geometry samples.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: DIRECTORY -->
+            <section id="directory-view" class="view hidden-view">
+                <header class="view-header">
+                    <h2>User Directory</h2>
+                    <p>Manage enrolled facial identities and credential keys</p>
+                </header>
+                <div class="glass-panel table-panel">
+                    <table class="user-table">
+                        <thead>
+                            <tr>
+                                <th>Profile Name</th>
+                                <th>Full Template Status</th>
+                                <th>Upper Template Status</th>
+                                <th>Operations</th>
+                            </tr>
+                        </thead>
+                        <tbody id="directory-tbody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- VIEW: LOGS -->
+            <section id="logs-view" class="view hidden-view">
+                <header class="view-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <h2>System Log Console</h2>
+                        <p>View real-time authorization audits and system security events</p>
+                    </div>
+                    <a href="/api/export_logs" class="btn-primary" style="width:auto; padding:10px 20px; text-decoration:none;"><i class="fa-solid fa-file-excel"></i> Export Audit CSV</a>
+                </header>
+                <div class="glass-panel logs-panel">
+                    <div id="logs-container" class="terminal-logs">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: SETTINGS -->
+            <section id="settings-view" class="view hidden-view">
+                <header class="view-header">
+                    <h2>Calibration & Settings</h2>
+                    <p>Fine-tune deep neural network confidence bounds and clear memory caches</p>
+                </header>
+                
+                <div class="glass-panel settings-panel">
+                    
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h3>Biometric Matching Sensitivity</h3>
+                            <p>Adjusting this value dictates the matching tolerance (SFace Cosine Threshold). Recommended: 0.363.</p>
+                        </div>
+                        <div class="setting-control">
+                            <input type="range" id="threshold-slider" min="0.15" max="0.60" step="0.001" value="0.363">
+                            <span id="threshold-val">0.363</span>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h3>Webcam Scanner Refresh Skips</h3>
+                            <p>Configure how frequently the neural network runs checks. Skipping frames decreases CPU burden.</p>
+                        </div>
+                        <div class="setting-control">
+                            <input type="range" id="interval-slider" min="1" max="10" step="1" value="3">
+                            <span id="interval-val">3 frames</span>
+                        </div>
+                    </div>
+
+                    <div class="setting-item danger-zone">
+                        <div class="setting-info">
+                            <h3>Database Administration</h3>
+                            <p>Completely erase the MFR database. All enrolled user profiles will be deleted permanently.</p>
+                        </div>
+                        <div class="setting-control">
+                            <button id="btn-wipe-db" class="btn-danger"><i class="fa-solid fa-trash"></i> Wipe Database</button>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Hidden canvas used to extract video frame pixels -->
+    <canvas id="hidden-canvas" width="640" height="480" style="display:none;"></canvas>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

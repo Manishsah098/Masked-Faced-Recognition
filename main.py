@@ -439,11 +439,12 @@ class MFRSystemApp:
                         is_occluded = False
                         if forehead_ratio > 0.15:
                             # If we have a forehead reference, check relative ratio
-                            if mouth_ratio < 0.20 or (mouth_ratio / forehead_ratio) < 0.35:
+                            # Raised thresholds to detect partial occlusion (e.g. holding cloth/hand)
+                            if mouth_ratio < 0.45 or (mouth_ratio / forehead_ratio) < 0.55:
                                 is_occluded = True
                         else:
                             # Fallback if forehead has no skin (hair bangs, etc.)
-                            if mouth_ratio < 0.15:
+                            if mouth_ratio < 0.35:
                                 is_occluded = True
                                 
                         # Override mask label if skin analysis detects occlusion
