@@ -1,5 +1,6 @@
 import sys
 import os
+# pyrefly: ignore [missing-import]
 import cv2
 
 # Add current directory to path
