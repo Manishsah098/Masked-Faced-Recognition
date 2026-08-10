@@ -44,6 +44,21 @@ class AppState:
 
 state = AppState()
 
+def sanitize_for_json(obj):
+    """Recursively convert numpy arrays → lists and drop non-serializable objects."""
+    if isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items() if not isinstance(v, np.ndarray)}
+    if isinstance(obj, (list, tuple)):
+        return [sanitize_for_json(i) for i in obj]
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        return float(obj)
+    if isinstance(obj, np.ndarray):
+        return None  # strip raw embeddings; not useful in UI anyway
+    return obj
+
+
 def log_event(message):
     timestamp = datetime.now().strftime("%H:%M:%S")
     log_str = f"[{timestamp}] {message}"
@@ -171,7 +186,7 @@ def handle_image(data):
                 'status_msg': state.live_status_msg,
                 'status_color': state.live_status_color,
                 'explanation': state.live_explanation,
-                'agents': state.agent_telemetry
+                'agents': sanitize_for_json(state.agent_telemetry)
             }
         })
     except Exception as e:
@@ -190,7 +205,7 @@ def api_state():
         "status_msg": state.live_status_msg,
         "status_color": state.live_status_color,
         "explanation": state.live_explanation,
-        "agents": state.agent_telemetry,
+        "agents": sanitize_for_json(state.agent_telemetry),
         "strict_mode": state.strict_mask_mode
     })
 

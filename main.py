@@ -39,12 +39,11 @@ class MFRSystemApp:
         self.is_camera_active = False
         self.models_ready = False
         self.cap = None
-        self.detector = None
-        self.recognizer = None
-        self.mask_detector = None
+        self.orchestrator = None  # MFR-X Multi-Agent Orchestrator
         self.db = mfr.Database()
         
         self.cached_results = []
+        self.latest_telemetry = {}  # Full multi-agent telemetry
         self.frame_count = 0
         self.detection_interval = 3      # Run inference every 3 frames for smooth UI
         self.strict_mask_mode = tk.BooleanVar(value=False)
@@ -83,18 +82,14 @@ class MFRSystemApp:
         style.map("TProgressbar", background=[('active', self.accent_blue)])
 
     def initialize_models(self):
-        """Downloads (if necessary) and loads the ONNX models."""
-        self.log_event("SYSTEM: Initializing models in background...")
+        """Downloads (if necessary) and loads the MFR-X Multi-Agent Orchestrator."""
+        self.log_event("SYSTEM: Initializing MFR-X Multi-Agent Orchestrator...")
         try:
-            # Assures models are downloaded
-            mfr.ensure_models()
+            self.orchestrator = mfr.BiometricOrchestrator(models_dir="models", db_path="db.json")
+            self.orchestrator.frame_interval = 1  # Desktop handles its own interval via detection_interval
+            self.db = self.orchestrator.recognition_agent.db
             
-            # Instantiate classes
-            self.detector = mfr.FaceDetector(mfr.get_model_path("yunet.onnx"))
-            self.recognizer = mfr.FaceRecognizer(mfr.get_model_path("sface.onnx"))
-            self.mask_detector = mfr.MaskDetector(mfr.get_model_path("mask_detector.onnx"))
-            
-            self.log_event("SYSTEM: All ONNX models loaded successfully.")
+            self.log_event("SYSTEM: 10 AI Specialized Agents loaded successfully.")
             self.reg_status_text.set("System Ready")
             self.models_ready = True
         except Exception as e:
@@ -406,98 +401,62 @@ class MFRSystemApp:
         frame = cv2.flip(frame, 1)
         self.frame_count += 1
         
-        # Core Pipeline: Inference Run
-        if self.detector is not None:
+        # Core Pipeline: MFR-X Multi-Agent Inference
+        if self.orchestrator is not None:
             if self.frame_count % self.detection_interval == 0:
-                # Perform Face Detection
-                faces = self.detector.detect(frame)
+                self.orchestrator.set_strict_mode(self.strict_mask_mode.get())
+                annotated_frame, telemetry = self.orchestrator.process_frame(frame)
+                self.latest_telemetry = telemetry
                 
                 new_results = []
-                for face in faces:
-                    box = face['box']
-                    # 1. Classify Mask Status
-                    mask_label, mask_conf = self.mask_detector.predict(frame, box)
+                if telemetry['detected']:
+                    agents = telemetry['agents']
+                    det = agents['detection']
+                    mask_data = agents['mask']
+                    rec_data = agents['recognition']
+                    sec_data = agents['security']
                     
-                    # 2. Get Aligned Face Crop for Embedding Extraction
-                    try:
-                        aligned_face = self.recognizer.align_crop(frame, face['raw'])
+                    # Translate multi-agent telemetry back to legacy cached_results format
+                    # for HUD drawing and info panel compatibility
+                    faces = self.orchestrator.detection_agent.process(frame)
+                    for face_p in faces:
+                        mask_label = mask_data['mask_status']
+                        mask_conf = mask_data['mask_confidence'] / 100.0
                         
-                        # Apply YCrCb Skin Color check on aligned face to detect occlusions (towels, cloths, etc.)
-                        ycrcb = cv2.cvtColor(aligned_face, cv2.COLOR_BGR2YCrCb)
-                        lower_skin = np.array([0, 133, 77], dtype=np.uint8)
-                        upper_skin = np.array([255, 173, 127], dtype=np.uint8)
-                        skin_mask = cv2.inRange(ycrcb, lower_skin, upper_skin)
+                        candidate = sec_data.get('candidate', 'Unknown')
+                        score = rec_data.get('similarity_score', 0.0)
                         
-                        # Forehead region (y: 10 to 45, x: 35 to 77)
-                        forehead_crop = skin_mask[10:45, 35:77]
-                        forehead_ratio = np.mean(forehead_crop == 255)
+                        new_results.append({
+                            'box': face_p['box'],
+                            'landmarks': face_p['landmarks'],
+                            'mask_status': (mask_label, mask_conf),
+                            'identity': (candidate, score),
+                            'raw': face_p['raw']
+                        })
                         
-                        # Mouth/Nose region (y: 65 to 105, x: 20 to 92)
-                        mouth_crop = skin_mask[65:105, 20:92]
-                        mouth_ratio = np.mean(mouth_crop == 255)
-                        
-                        is_occluded = False
-                        if forehead_ratio > 0.15:
-                            # If we have a forehead reference, check relative ratio
-                            # Raised thresholds to detect partial occlusion (e.g. holding cloth/hand)
-                            if mouth_ratio < 0.45 or (mouth_ratio / forehead_ratio) < 0.55:
-                                is_occluded = True
-                        else:
-                            # Fallback if forehead has no skin (hair bangs, etc.)
-                            if mouth_ratio < 0.35:
-                                is_occluded = True
-                                
-                        # Override mask label if skin analysis detects occlusion
-                        if is_occluded and mask_label == "Unmasked":
-                            mask_label = "Masked"
-                            mask_conf = float(1.0 - mouth_ratio)
-                        
-                        # 3. Choose embedding & match mode depending on Mask
-                        if mask_label == "Masked":
-                            emb = self.recognizer.extract_upper_face_feature(aligned_face)
-                            name, score = self.db.match_face(emb, mode="upper", recognizer=self.recognizer)
-                        else:
-                            emb = self.recognizer.extract_feature(aligned_face)
-                            name, score = self.db.match_face(emb, mode="full", recognizer=self.recognizer)
-                    except Exception as e:
-                        # Fallback if alignment / embedding fails
-                        print(f"Alignment/Embedding error: {e}")
-                        name, score = "Unknown", 0.0
-                        
-                    new_results.append({
-                        'box': box,
-                        'landmarks': face['landmarks'],
-                        'mask_status': (mask_label, mask_conf),
-                        'identity': (name, score),
-                        'raw': face['raw']
-                    })
-                    
-                    # Track Detections for logging (prevent duplicates in short span)
-                    self.track_detection_events(name, mask_label, score)
-                    
+                        self.track_detection_events(candidate, mask_label, score)
+                
                 self.cached_results = new_results
                 
             # If in Registration Mode, save captured frames
             if self.registering and len(self.cached_results) == 1:
                 # Only register if exactly one face is detected
                 face_data = self.cached_results[0]
-                box = face_data['box']
                 mask_lbl, _ = face_data['mask_status']
                 
                 if mask_lbl == "Masked":
                     self.reg_status_text.set("ALERT: Remove mask to register!")
                     self.reg_progress.set(0.0)
                 else:
-                    # Crop and save aligned face
                     try:
-                        aligned_face = self.recognizer.align_crop(frame, face_data['raw'])
+                        recognizer = self.orchestrator.recognition_agent.recognizer
+                        aligned_face = recognizer.align_crop(frame, face_data['raw'])
                         self.reg_frames.append(aligned_face)
                         progress = len(self.reg_frames) / 5.0 * 100.0
                         self.reg_progress.set(progress)
-                        self.reg_status_text.set(f"Capturing template {len(self.reg_frames)}/5...")
+                        self.reg_status_text.set(f"Capturing biometric template {len(self.reg_frames)}/5...")
                         
                         if len(self.reg_frames) == 5:
-                            # Registration Complete! Process in background
                             self.registering = False
                             threading.Thread(target=self.finalize_registration, daemon=True).start()
                     except Exception as e:
@@ -818,7 +777,7 @@ class MFRSystemApp:
 
     def start_registration_capture(self):
         """Starts the capture routine for registration."""
-        if self.detector is None or self.recognizer is None:
+        if self.orchestrator is None:
             messagebox.showerror("Error", "Models are still initializing. Please wait.")
             return
             
@@ -841,38 +800,38 @@ class MFRSystemApp:
         self.reg_status_text.set("Computing average feature embeddings...")
         self.log_event(f"SYSTEM: Captured 5 face templates for {self.reg_name}. Finalizing enrollment...")
         
+        recognizer = self.orchestrator.recognition_agent.recognizer if self.orchestrator else None
+        if recognizer is None:
+            self.reg_status_text.set("Registration failed. Orchestrator not ready.")
+            self.root.after(0, lambda: self.reg_btn.config(state="normal", text="Start Profile Acquisition"))
+            return
+        
         full_embs = []
         upper_embs = []
         
         for idx, aligned_face in enumerate(self.reg_frames):
             try:
-                # Get embeddings
-                f_emb = self.recognizer.extract_feature(aligned_face)
-                u_emb = self.recognizer.extract_upper_face_feature(aligned_face)
-                
+                f_emb = recognizer.extract_feature(aligned_face)
+                u_emb = recognizer.extract_upper_face_feature(aligned_face)
                 full_embs.append(f_emb)
                 upper_embs.append(u_emb)
             except Exception as e:
                 print(f"Embedding error on frame {idx}: {e}")
                 
         if len(full_embs) > 0:
-            # Average embeddings to reduce capturing noise
             avg_full_emb = np.mean(full_embs, axis=0)
             avg_upper_emb = np.mean(upper_embs, axis=0)
             
-            # Register user
             self.db.register_user(self.reg_name, avg_full_emb, avg_upper_emb)
             
             self.log_event(f"DATABASE: Successfully registered user '{self.reg_name}'")
             self.reg_status_text.set(f"Enrollment Successful! '{self.reg_name}' registered.")
             
-            # Clear input
             self.root.after(0, lambda: self.reg_name_entry.delete(0, tk.END))
         else:
             self.reg_status_text.set("Registration failed. Unable to extract features.")
             self.log_event(f"ERROR: Enrollment failed for {self.reg_name}.")
             
-        # Restore button state
         self.root.after(0, lambda: self.reg_btn.config(state="normal", text="Start Profile Acquisition"))
 
     # 3. USER DIRECTORY TAB
@@ -1120,8 +1079,8 @@ class MFRSystemApp:
         """Callback when SFace cosine threshold slider updates."""
         curr_val = self.threshold_slider_var.get()
         self.threshold_lbl_var.set(f"Current Boundary: {curr_val:.3f}")
-        if self.recognizer is not None:
-            self.recognizer.cosine_threshold = curr_val
+        if self.orchestrator is not None:
+            self.orchestrator.set_cosine_threshold(curr_val)
 
     def on_interval_change(self, val):
         """Callback when frame skip interval slider updates."""
@@ -1137,6 +1096,9 @@ class MFRSystemApp:
             if os.path.exists("db.json"):
                 os.remove("db.json")
             self.db = mfr.Database()
+            if self.orchestrator is not None:
+                # Reload the orchestrator's internal db reference
+                self.orchestrator.recognition_agent.db = self.db
             self.log_event("DATABASE: Completely wiped facial database file.")
             messagebox.showinfo("Database Cleaned", "Biometric face database successfully wiped clean.")
 
