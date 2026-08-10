@@ -1,71 +1,51 @@
 import sys
 import os
-# pyrefly: ignore [missing-import]
 import cv2
+import numpy as np
 
-# Add current directory to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
 import mfr
 
 def test_pipeline():
-    print("=== MFR Verification Script ===")
-    
-    print("\n1. Ensuring models are downloaded...")
-    def download_progress(model_name, downloaded, total, status):
-        if total > 0:
-            pct = (downloaded / total) * 100
-            print(f"   [{model_name}] {status}: {downloaded}/{total} bytes ({pct:.1f}%)", end='\r')
-        else:
-            print(f"   [{model_name}] {status}...", end='\r')
-            
+    print("=== MFR-X Multi-Agent System Verification Script ===")
+
+    print("\n1. Initializing MFR-X Master Biometric Orchestrator...")
     try:
-        mfr.ensure_models(download_progress)
-        print("\n   All models ensured!")
+        orchestrator = mfr.BiometricOrchestrator(models_dir="models", db_path="test_db.json")
+        print("   [OK] BiometricOrchestrator initialized with 10 specialized AI agents.")
     except Exception as e:
-        print(f"\n   Error downloading models: {e}")
+        print(f"   [FAIL] Failed to initialize orchestrator: {e}")
         return False
 
-    print("\n2. Initializing Detector...")
+    print("\n2. Simulating Synthetic Frame Processing...")
     try:
-        detector_path = mfr.get_model_path("yunet.onnx")
-        detector = mfr.FaceDetector(detector_path)
-        print(f"   Detector initialized successfully (model: {detector_path})")
+        # Create a synthetic 640x480 test frame with a simple rectangle as a face placeholder
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        cv2.circle(frame, (320, 240), 80, (200, 200, 200), -1)
+
+        annotated_frame, telemetry = orchestrator.process_frame(frame)
+
+        print("   [OK] Multi-Agent Pipeline executed successfully!")
+        print(f"   Candidate  : {telemetry['candidate']}")
+        print(f"   Decision   : {telemetry['status']}")
+        print(f"   Explanation: {telemetry['explanation']}")
+        print("\n   Active Agent Telemetry:")
+        for agent_name, payload in telemetry['agents'].items():
+            print(f"     [{agent_name.upper():16s}] {payload}")
+
     except Exception as e:
-        print(f"   Failed to initialize detector: {e}")
+        print(f"   [FAIL] Error during multi-agent pipeline test: {e}")
+        import traceback; traceback.print_exc()
         return False
 
-    print("\n3. Initializing Recognizer...")
-    try:
-        recognizer_path = mfr.get_model_path("sface.onnx")
-        recognizer = mfr.FaceRecognizer(recognizer_path)
-        print(f"   Recognizer initialized successfully (model: {recognizer_path})")
-    except Exception as e:
-        print(f"   Failed to initialize recognizer: {e}")
-        return False
-
-    print("\n4. Initializing Mask Detector...")
-    try:
-        mask_detector_path = mfr.get_model_path("mask_detector.onnx")
-        mask_detector = mfr.MaskDetector(mask_detector_path)
-        print(f"   Mask Detector initialized successfully (model: {mask_detector_path})")
-    except Exception as e:
-        print(f"   Failed to initialize mask detector: {e}")
-        return False
-
-    print("\n5. Initializing Database...")
-    try:
-        db = mfr.Database("test_db.json")
-        print(f"   Database initialized successfully (path: {db.db_path})")
-        # Cleanup test DB if it exists
+    finally:
         if os.path.exists("test_db.json"):
-            os.remove("test_db.json")
-    except Exception as e:
-        print(f"   Failed to initialize database: {e}")
-        return False
+            try:
+                os.remove("test_db.json")
+            except Exception:
+                pass
 
-    print("\n=== Verification Successful! ===")
-    print("All components have loaded and initialized correctly. The pipeline is functional.")
+    print("\n=== MFR-X Multi-Agent Verification: PASSED ===")
     return True
 
 if __name__ == "__main__":

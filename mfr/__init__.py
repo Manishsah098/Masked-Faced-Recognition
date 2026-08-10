@@ -3,6 +3,7 @@ from .detector import FaceDetector
 from .recognizer import FaceRecognizer
 from .mask_detector import MaskDetector
 from .database import Database
+from .agents import BiometricOrchestrator
 
 __all__ = [
     'ensure_models',
@@ -10,5 +11,6 @@ __all__ = [
     'FaceDetector',
     'FaceRecognizer',
     'MaskDetector',
-    'Database'
+    'Database',
+    'BiometricOrchestrator'
 ]
