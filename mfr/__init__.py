@@ -3,6 +3,7 @@ from .detector import FaceDetector
 from .recognizer import FaceRecognizer
 from .mask_detector import MaskDetector
 from .database import Database
+from .detection_log import DetectionLog
 from .agents import BiometricOrchestrator
 
 __all__ = [
@@ -12,5 +13,7 @@ __all__ = [
     'FaceRecognizer',
     'MaskDetector',
     'Database',
+    'DetectionLog',
     'BiometricOrchestrator'
 ]
+
