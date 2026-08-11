@@ -41,6 +41,7 @@ class MFRSystemApp:
         self.cap = None
         self.orchestrator = None  # MFR-X Multi-Agent Orchestrator
         self.db = mfr.Database()
+        self.log_db = mfr.DetectionLog("detection_log.db")
         
         self.cached_results = []
         self.latest_telemetry = {}  # Full multi-agent telemetry
@@ -497,6 +498,7 @@ class MFRSystemApp:
                 self.seen_detections[name] = current_time
                 status_msg = f"Masked (Score: {score:.2f})" if mask_status == "Masked" else "Unmasked"
                 self.log_event(f"DETECTED: {name} - {status_msg}")
+                self.log_db.log_detection(name, mask_status, score)
                 
                 # Check for strict safety warnings
                 if self.strict_mask_mode.get() and mask_status == "Unmasked":
@@ -861,13 +863,13 @@ class MFRSystemApp:
             widget.destroy()
             
         # Headers
-        headers = [("Profile ID / Name", 0.4), ("Full Template Status", 0.25), ("Upper Template Status", 0.25), ("Operations", 0.1)]
+        headers = [("Profile ID / Name", 0.3), ("Times Detected", 0.25), ("Last Seen Time", 0.3), ("Operations", 0.15)]
         headers_frame = tk.Frame(self.user_table_frame, bg=self.bg_card, height=35)
         headers_frame.pack(fill="x", pady=(0, 10))
         
         # Grid columns
-        headers_frame.columnconfigure(0, weight=4)
-        headers_frame.columnconfigure(1, weight=3)
+        headers_frame.columnconfigure(0, weight=3)
+        headers_frame.columnconfigure(1, weight=2)
         headers_frame.columnconfigure(2, weight=3)
         headers_frame.columnconfigure(3, weight=2)
         
@@ -905,22 +907,27 @@ class MFRSystemApp:
             row_frame = tk.Frame(scrollable_frame, bg=self.bg_panel)
             row_frame.pack(fill="x", pady=3)
             
-            row_frame.columnconfigure(0, weight=4)
-            row_frame.columnconfigure(1, weight=3)
+            row_frame.columnconfigure(0, weight=3)
+            row_frame.columnconfigure(1, weight=2)
             row_frame.columnconfigure(2, weight=3)
             row_frame.columnconfigure(3, weight=2)
+            
+            # Fetch stats from log db
+            summary = self.log_db.get_person_summary(name)
+            det_count = summary["detection_count"] if summary else 0
+            last_seen = summary["last_seen"] if summary else "Never"
             
             # Name
             name_lbl = tk.Label(row_frame, text=name, font=("Segoe UI", 10, "bold"), fg=self.text_primary, bg=self.bg_panel, anchor="w", padx=10)
             name_lbl.grid(row=0, column=0, sticky="nsew", pady=8)
             
-            # Status Full
-            status_f_lbl = tk.Label(row_frame, text="● ACTIVE", font=("Segoe UI", 9, "bold"), fg=self.accent_green, bg=self.bg_panel, anchor="w", padx=10)
-            status_f_lbl.grid(row=0, column=1, sticky="nsew", pady=8)
+            # Times Detected
+            det_lbl = tk.Label(row_frame, text=f"{det_count} times", font=("Segoe UI", 9, "bold"), fg=self.accent_blue if det_count > 0 else self.text_secondary, bg=self.bg_panel, anchor="w", padx=10)
+            det_lbl.grid(row=0, column=1, sticky="nsew", pady=8)
             
-            # Status Upper Mask
-            status_u_lbl = tk.Label(row_frame, text="● ADAPTIVE MASKED", font=("Segoe UI", 9, "bold"), fg=self.accent_blue, bg=self.bg_panel, anchor="w", padx=10)
-            status_u_lbl.grid(row=0, column=2, sticky="nsew", pady=8)
+            # Last Seen Time
+            last_lbl = tk.Label(row_frame, text=last_seen, font=("Segoe UI", 9, "bold"), fg=self.accent_green if det_count > 0 else self.text_secondary, bg=self.bg_panel, anchor="w", padx=10)
+            last_lbl.grid(row=0, column=2, sticky="nsew", pady=8)
             
             # Delete Button
             del_btn = tk.Button(
@@ -947,7 +954,8 @@ class MFRSystemApp:
         confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete profile '{name}' from the MFR database?")
         if confirm:
             self.db.delete_user(name)
-            self.log_event(f"DATABASE: Deleted user profile '{name}'")
+            self.log_db.delete_person(name)
+            self.log_event(f"DATABASE: Deleted user profile '{name}' and detection history")
             self.refresh_directory_table()
 
     # 4. SYSTEM LOGS TAB
@@ -1096,11 +1104,12 @@ class MFRSystemApp:
             if os.path.exists("db.json"):
                 os.remove("db.json")
             self.db = mfr.Database()
+            self.log_db.clear_all()
             if self.orchestrator is not None:
                 # Reload the orchestrator's internal db reference
                 self.orchestrator.recognition_agent.db = self.db
-            self.log_event("DATABASE: Completely wiped facial database file.")
-            messagebox.showinfo("Database Cleaned", "Biometric face database successfully wiped clean.")
+            self.log_event("DATABASE: Completely wiped facial database file and detection log database.")
+            messagebox.showinfo("Database Cleaned", "Biometric face database and detection logs successfully wiped clean.")
 
 # --- MAIN INVOCATOR ---
 if __name__ == "__main__":
