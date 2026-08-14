@@ -8,9 +8,11 @@ class MaskDetector:
         # Load the ONNX model using OpenCV DNN
         self.net = cv2.dnn.readNetFromONNX(self.model_path)
         
-        # Set preferable backend and target to CPU for general compatibility
-        self.net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
-        self.net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
+        # Set preferable backend to CPU for general compatibility
+        try:
+            self.net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
+        except Exception:
+            pass
 
     def predict(self, frame, box):
         """

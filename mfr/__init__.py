@@ -1,3 +1,9 @@
+import cv2
+try:
+    cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_ERROR)
+except Exception:
+    pass
+
 from .utils import ensure_models, get_model_path
 from .detector import FaceDetector
 from .recognizer import FaceRecognizer

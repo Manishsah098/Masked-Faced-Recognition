@@ -11,12 +11,19 @@ from io import StringIO
 from flask import Flask, render_template, Response, jsonify, request, make_response
 from flask_socketio import SocketIO, emit
 
+# Suppress OpenCV C++ DNN backend warnings
+try:
+    cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_ERROR)
+except Exception:
+    pass
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import mfr
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'mfr-x-secret-key-2026')
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet', ping_timeout=60, ping_interval=25)
 
 class AppState:
     def __init__(self):
