@@ -138,17 +138,54 @@ document.addEventListener('DOMContentLoaded', () => {
     let isProcessing = false;
     let lastSendTime = 0;
 
-    navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
-        .then(stream => {
-            video.srcObject = stream;
-            video.play();
-            requestAnimationFrame(captureLoop);
-        })
-        .catch(err => {
-            console.error("Camera access failed", err);
-            statusText.innerText = "Camera Access Error";
+    function startCamera() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            console.error("Camera API unavailable. Webcams require HTTPS or localhost.");
+            statusText.innerText = "Camera Error: Requires HTTPS";
             statusDot.style.backgroundColor = '#f85149';
-        });
+            return;
+        }
+
+        const primaryConstraints = {
+            video: {
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+                facingMode: "user"
+            }
+        };
+
+        navigator.mediaDevices.getUserMedia(primaryConstraints)
+            .then(onStreamSuccess)
+            .catch(err => {
+                console.warn("Primary camera constraints failed, attempting fallback:", err);
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(onStreamSuccess)
+                    .catch(err2 => {
+                        console.error("Camera access failed completely:", err2);
+                        statusText.innerText = "Camera Access Error/Denied";
+                        statusDot.style.backgroundColor = '#f85149';
+                    });
+            });
+    }
+
+    function onStreamSuccess(stream) {
+        video.srcObject = stream;
+        video.muted = true;
+        video.playsInline = true;
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                requestAnimationFrame(captureLoop);
+            }).catch(err => {
+                console.warn("video.play() auto-play prevented:", err);
+                requestAnimationFrame(captureLoop);
+            });
+        } else {
+            requestAnimationFrame(captureLoop);
+        }
+    }
+
+    startCamera();
 
     function captureLoop() {
         const now = Date.now();
@@ -163,10 +200,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function sendFrame() {
-        if (video.paused || video.ended) return;
+        if (!video.videoWidth || !video.videoHeight || video.paused || video.ended) return;
         isProcessing = true;
         lastSendTime = Date.now();
         
+        canvas.width = 640;
+        canvas.height = 480;
         ctx.drawImage(video, 0, 0, 640, 480);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.5); // Highly compressed JPEG for speed
         socket.emit('image', dataUrl);

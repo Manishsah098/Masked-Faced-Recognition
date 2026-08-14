@@ -1,5 +1,10 @@
 import os
 import sys
+
+# Suppress OpenCV C++ DNN internal warnings before cv2 import
+os.environ["OPENCV_LOG_LEVEL"] = "OFF"
+os.environ["OPENCV_FFMPEG_LOG_LEVEL"] = "-8"
+
 import time
 from datetime import datetime
 import threading
@@ -10,12 +15,6 @@ import csv
 from io import StringIO
 from flask import Flask, render_template, Response, jsonify, request, make_response
 from flask_socketio import SocketIO, emit
-
-# Suppress OpenCV C++ DNN backend warnings
-try:
-    cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_ERROR)
-except Exception:
-    pass
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import mfr
@@ -120,6 +119,18 @@ def finalize_registration():
 @socketio.on('image')
 def handle_image(data):
     if state.orchestrator is None:
+        emit('response', {
+            'image': data,
+            'state': {
+                'name': '-',
+                'mask': '-',
+                'score': '0.0%',
+                'status_msg': 'INITIALIZING AI MODELS...',
+                'status_color': '#d29922',
+                'explanation': 'Loading YuNet & SFace models...',
+                'agents': {}
+            }
+        })
         return
 
     try:
