@@ -134,11 +134,62 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('hidden-canvas');
     const ctx = canvas.getContext('2d');
     const feedImg = document.getElementById('video-feed');
-    
+    const cameraSelect = document.getElementById('camera-select');
+    const btnMirror = document.getElementById('btn-mirror-cam');
+    const btnFlipV = document.getElementById('btn-flipv-cam');
+    const btnRefresh = document.getElementById('btn-refresh-cam');
+
     let isProcessing = false;
     let lastSendTime = 0;
+    let currentStream = null;
+    let loopRunning = false;
 
-    function startCamera() {
+    // Persisted preferences
+    let selectedCameraId = localStorage.getItem('mfr_camera_id') || '';
+    let mirrorH = localStorage.getItem('mfr_mirror_h') === 'true';
+    let flipV = localStorage.getItem('mfr_flip_v') === 'true';
+
+    // Update button visual states on load
+    if (btnMirror && mirrorH) btnMirror.classList.add('active');
+    if (btnFlipV && flipV) btnFlipV.classList.add('active');
+
+    async function enumerateCameraDevices() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(d => d.kind === 'videoinput');
+            
+            if (cameraSelect) {
+                cameraSelect.innerHTML = '';
+                if (videoDevices.length === 0) {
+                    const opt = document.createElement('option');
+                    opt.value = '';
+                    opt.innerText = 'No camera found';
+                    cameraSelect.appendChild(opt);
+                    return;
+                }
+
+                videoDevices.forEach((dev, idx) => {
+                    const opt = document.createElement('option');
+                    opt.value = dev.deviceId;
+                    opt.innerText = dev.label || `Camera ${idx + 1}`;
+                    if (dev.deviceId === selectedCameraId) {
+                        opt.selected = true;
+                    }
+                    cameraSelect.appendChild(opt);
+                });
+
+                if (!videoDevices.some(d => d.deviceId === selectedCameraId) && videoDevices.length > 0) {
+                    selectedCameraId = videoDevices[0].deviceId;
+                    cameraSelect.value = selectedCameraId;
+                }
+            }
+        } catch (err) {
+            console.warn("Could not enumerate devices:", err);
+        }
+    }
+
+    async function startCamera(deviceId = null) {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             console.error("Camera API unavailable. Webcams require HTTPS or localhost.");
             statusText.innerText = "Camera Error: Requires HTTPS";
@@ -146,54 +197,122 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const primaryConstraints = {
+        // Stop existing camera stream
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
+        }
+
+        const chosenId = deviceId || selectedCameraId;
+        const constraints = {
             video: {
                 width: { ideal: 640 },
-                height: { ideal: 480 },
-                facingMode: "user"
+                height: { ideal: 480 }
             }
         };
 
-        navigator.mediaDevices.getUserMedia(primaryConstraints)
-            .then(onStreamSuccess)
-            .catch(err => {
-                console.warn("Primary camera constraints failed, attempting fallback:", err);
-                navigator.mediaDevices.getUserMedia({ video: true })
-                    .then(onStreamSuccess)
-                    .catch(err2 => {
-                        console.error("Camera access failed completely:", err2);
-                        statusText.innerText = "Camera Access Error/Denied";
-                        statusDot.style.backgroundColor = '#f85149';
-                    });
-            });
+        if (chosenId) {
+            constraints.video.deviceId = { exact: chosenId };
+        } else {
+            constraints.video.facingMode = "user";
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            onStreamSuccess(stream, chosenId);
+        } catch (err) {
+            console.warn("Primary camera constraints failed, attempting fallback:", err);
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                onStreamSuccess(stream);
+            } catch (err2) {
+                console.error("Camera access failed completely:", err2);
+                statusText.innerText = "Camera Access Error/Denied";
+                statusDot.style.backgroundColor = '#f85149';
+            }
+        }
     }
 
-    function onStreamSuccess(stream) {
+    function onStreamSuccess(stream, requestedId = null) {
+        currentStream = stream;
         video.srcObject = stream;
         video.muted = true;
         video.playsInline = true;
+
+        const activeTrack = stream.getVideoTracks()[0];
+        if (activeTrack) {
+            const settings = activeTrack.getSettings ? activeTrack.getSettings() : {};
+            if (settings.deviceId) {
+                selectedCameraId = settings.deviceId;
+                localStorage.setItem('mfr_camera_id', selectedCameraId);
+            }
+        }
+
+        // Re-populate device list with granted labels
+        enumerateCameraDevices();
+
         const playPromise = video.play();
         if (playPromise !== undefined) {
             playPromise.then(() => {
-                requestAnimationFrame(captureLoop);
+                if (!loopRunning) {
+                    loopRunning = true;
+                    requestAnimationFrame(captureLoop);
+                }
             }).catch(err => {
                 console.warn("video.play() auto-play prevented:", err);
-                requestAnimationFrame(captureLoop);
+                if (!loopRunning) {
+                    loopRunning = true;
+                    requestAnimationFrame(captureLoop);
+                }
             });
-        } else {
+        } else if (!loopRunning) {
+            loopRunning = true;
             requestAnimationFrame(captureLoop);
         }
+    }
+
+    if (cameraSelect) {
+        cameraSelect.addEventListener('change', (e) => {
+            selectedCameraId = e.target.value;
+            localStorage.setItem('mfr_camera_id', selectedCameraId);
+            startCamera(selectedCameraId);
+        });
+    }
+
+    if (btnMirror) {
+        btnMirror.addEventListener('click', () => {
+            mirrorH = !mirrorH;
+            localStorage.setItem('mfr_mirror_h', mirrorH);
+            btnMirror.classList.toggle('active', mirrorH);
+        });
+    }
+
+    if (btnFlipV) {
+        btnFlipV.addEventListener('click', () => {
+            flipV = !flipV;
+            localStorage.setItem('mfr_flip_v', flipV);
+            btnFlipV.classList.toggle('active', flipV);
+        });
+    }
+
+    if (btnRefresh) {
+        btnRefresh.addEventListener('click', () => {
+            startCamera(selectedCameraId);
+        });
+    }
+
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+        navigator.mediaDevices.addEventListener('devicechange', enumerateCameraDevices);
     }
 
     startCamera();
 
     function captureLoop() {
         const now = Date.now();
-        // Pull-based sync: Only send next frame if the previous one finished, or if 1s elapsed (timeout fallback)
+        // Pull-based sync: Only send next frame if previous finished or timeout
         if ((!isProcessing || (now - lastSendTime > 1000)) && socket.connected) {
             sendFrame();
         }
-        // Limit processing loop to ~15 FPS max to optimize CPU usage
         setTimeout(() => {
             requestAnimationFrame(captureLoop);
         }, 60);
@@ -206,7 +325,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         canvas.width = 640;
         canvas.height = 480;
+
+        ctx.save();
+        ctx.translate(mirrorH ? 640 : 0, flipV ? 480 : 0);
+        ctx.scale(mirrorH ? -1 : 1, flipV ? -1 : 1);
         ctx.drawImage(video, 0, 0, 640, 480);
+        ctx.restore();
+
         const dataUrl = canvas.toDataURL('image/jpeg', 0.5); // Highly compressed JPEG for speed
         socket.emit('image', dataUrl);
     }
