@@ -287,6 +287,105 @@ a { color: var(--cyan); }
 }
 
 /* ---------- Camera view ---------- */
+.camera-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.camera-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.camera-select-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--panel-raised);
+  border: 1px solid var(--hairline-lit);
+  border-radius: var(--radius);
+  padding: 0 10px;
+  height: 36px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.camera-select-box:focus-within {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px var(--amber-glow);
+}
+
+.camera-select-box i {
+  color: var(--amber);
+  font-size: 12px;
+  margin-right: 8px;
+  pointer-events: none;
+}
+
+.camera-select-box select {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  max-width: 220px;
+  text-overflow: ellipsis;
+}
+
+.camera-select-box select option {
+  background: var(--panel);
+  color: var(--text);
+}
+
+.btn-camera-ctrl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  background: var(--panel-raised);
+  border: 1px solid var(--hairline-lit);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-camera-ctrl i {
+  font-size: 12px;
+}
+
+.btn-camera-ctrl:hover {
+  background: var(--hairline);
+  color: var(--text);
+  border-color: var(--hairline-lit);
+}
+
+.btn-camera-ctrl.active {
+  background: var(--amber-glow);
+  color: var(--amber);
+  border-color: var(--amber);
+  box-shadow: 0 0 8px var(--amber-glow);
+}
+
+.btn-camera-ctrl.btn-icon-only {
+  padding: 0 10px;
+}
+
+.btn-camera-ctrl:active {
+  transform: translateY(1px);
+}
+
 .camera-layout {
   display: grid;
   grid-template-columns: 1fr 320px;
