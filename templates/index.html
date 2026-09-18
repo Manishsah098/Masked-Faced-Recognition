@@ -56,9 +56,28 @@
             
             <!-- VIEW: CAMERA -->
             <section id="camera-view" class="view active-view">
-                <header class="view-header">
-                    <h2>Real-Time Face Scanner</h2>
-                    <p>Webcam stream decoded on-the-fly via high-speed bidirectional WebSockets</p>
+                <header class="view-header camera-header">
+                    <div>
+                        <h2>Real-Time Face Scanner</h2>
+                        <p>Webcam stream decoded on-the-fly via high-speed bidirectional WebSockets</p>
+                    </div>
+                    <div class="camera-toolbar">
+                        <div class="camera-select-box">
+                            <i class="fa-solid fa-video"></i>
+                            <select id="camera-select" title="Select Video Device">
+                                <option value="">Detecting cameras...</option>
+                            </select>
+                        </div>
+                        <button id="btn-mirror-cam" class="btn-camera-ctrl" title="Mirror / Flip Horizontally">
+                            <i class="fa-solid fa-arrows-left-right"></i> Mirror
+                        </button>
+                        <button id="btn-flipv-cam" class="btn-camera-ctrl" title="Invert / Flip Vertically">
+                            <i class="fa-solid fa-arrows-up-down"></i> Flip V
+                        </button>
+                        <button id="btn-refresh-cam" class="btn-camera-ctrl btn-icon-only" title="Reload / Reconnect Camera">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                    </div>
                 </header>
                 
                 <div class="camera-layout">
