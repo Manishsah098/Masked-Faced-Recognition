@@ -1,422 +1,268 @@
-# MFR-X — Multi-Agent Real-Time Masked Face Recognition
+<div align="center">
 
-**MFR-X (Multi-Agent Face Recognition eXperience)** is a CPU-optimized computer vision and biometric verification system designed for **real-time face recognition under facial occlusion**.
+# 🎭 MFR-X — Multi-Agent Real-Time Masked Face Recognition
 
-Instead of relying on a single monolithic recognition pipeline, MFR-X uses a coordinated network of specialized AI agents to analyze different aspects of a live camera feed, including:
+**An intelligent, CPU-optimized computer vision & biometric verification framework driven by a cooperative multi-agent AI architecture.**
 
-* Face detection
-* Image quality
-* Mask detection
-* Facial occlusion
-* Face recognition
-* Liveness and anti-spoofing
-* Temporal consistency
-* Confidence estimation
-* Security and risk assessment
-* Audit logging and AI-generated explanations
+[![Python Version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![OpenCV](https://img.shields.io/badge/OpenCV-4.8+-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)](https://opencv.org/)
+[![ONNX Runtime](https://img.shields.io/badge/Inference-ONNX%20DNN-005CED?style=for-the-badge&logo=onnx&logoColor=white)](https://onnxruntime.ai/)
+[![Flask](https://img.shields.io/badge/Backend-Flask%20%2B%20Socket.IO-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![Architecture](https://img.shields.io/badge/Architecture-10--Agent%20Decoupled-FF6F00?style=for-the-badge&logo=diagramsdotnet&logoColor=white)](#system-architecture)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-The system is designed to make recognition decisions more robust by combining multiple independent signals before producing a final verification result.
+[Features](#-key-features) • [Architecture](#-system-architecture) • [Agent Matrix](#-multi-agent-ecosystem) • [Models](#-deep-learning-models) • [Quickstart](#-installation--quickstart) • [API Reference](#-api-reference) • [Privacy & Ethics](#-privacy--security-compliance)
 
 ---
 
-## Overview
+</div>
 
-Real-world face recognition systems often encounter challenging conditions such as:
+## 📌 Executive Summary
 
-* Face masks and partial facial occlusion
-* Poor lighting
-* Blurry or low-resolution images
-* Different face orientations
-* Presentation attacks using photographs or screens
-* Temporary recognition errors in individual video frames
+Real-world facial recognition frequently degrades in unconstrained environments due to **face masks, severe occlusion, dynamic lighting, low-fidelity captures, and presentation spoof attacks**. Monolithic models often act as a "black box", failing silently or misidentifying masked individuals without explainable justification.
 
-MFR-X addresses these challenges through a **multi-agent architecture** in which each agent performs a dedicated task and contributes its results to the overall verification pipeline.
+**MFR-X (Multi-Agent Face Recognition eXperience)** solves this challenge by decomposing biometric analysis into a **coordinated network of 10 specialized AI agents**. Rather than executing compute-heavy neural passes indiscriminately, the MFR-X Orchestrator dynamically routes frame data through perception, biometric, decision, and audit tiers. The result is an ultra-fast, CPU-friendly verification engine capable of reliable upper-face recognition, spoof rejection, and real-time diagnostic reporting.
 
-### Core Workflow
+---
+
+## ✨ Key Features
+
+- **🎭 Adaptive Mask-Aware Recognition:** Automatically switches between full-face embeddings and upper-face periocular virtual masking depending on regional occlusion levels.
+- **⚡ CPU-Optimized High-Speed Inference:** Powered by lightweight ONNX neural networks (**YuNet**, **SFace**, **MobileNetV2**) executing at >30 FPS on standard multi-core CPUs.
+- **🤖 10-Agent Decoupled Architecture:** Each processing stage (quality check, mask segmentation, liveness, temporal tracking, security policy) is encapsulated in an autonomous agent.
+- **🛡️ Multi-Signal Anti-Spoofing & Liveness:** Detects presentation attacks (printed photos, screen replays) via landmark micro-movement analysis and optical texture variance.
+- **📈 Temporal Stability Filter:** Employs a 5-frame temporal sliding window consensus filter to eliminate single-frame misclassifications and video flicker.
+- **🖥️ Dual Interaction Interfaces:**
+  - **Modern Web Dashboard:** Full telemetry, live video streaming via WebSockets, profile manager, and interactive log analytics.
+  - **Desktop GUI:** Tkinter-based tactical surveillance and monitoring suite for localized standalone deployments.
+- **📋 Explainable AI & Audit Logging:** Emits human-readable verification rationales and exports tamper-resistant CSV/SQLite audit logs for access auditing.
+
+---
+
+## 🏛️ System Architecture
+
+MFR-X is structured across **four operational tiers**, coordinated by a central master orchestrator to guarantee high throughput and low-latency conditional execution.
+
+```mermaid
+flowchart TD
+    subgraph Input [" Input Tier "]
+        CAM["Live Video / Camera Feed"]
+    end
+
+    subgraph Orchestrator [" Core Orchestrator "]
+        ORCH["Biometric Orchestrator Agent"]
+    end
+
+    subgraph Perception [" Perception Tier "]
+        DET["Face Detection Agent<br/>(YuNet DNN)"]
+        QUAL["Image Quality Agent<br/>(Sharpness & Contrast)"]
+        MASK["Mask Analysis Agent<br/>(MobileNetV2 ONNX)"]
+        OCC["Occlusion Agent<br/>(4-Region Anatomical Map)"]
+    end
+
+    subgraph Biometric [" Biometric Tier "]
+        REC["Recognition Agent<br/>(SFace 128-D Embeddings)"]
+        LIVE["Liveness Agent<br/>(Optical Flow & Micro-Motion)"]
+        TRACK["Temporal Tracking Agent<br/>(5-Frame Sliding Window)"]
+    end
+
+    subgraph Decision [" Decision & Security Tier "]
+        FUSE["Confidence Fusion Agent<br/>(Multi-Signal Scoring)"]
+        SEC["Security & Risk Agent<br/>(Policy Enforcement)"]
+    end
+
+    subgraph Audit [" Intelligence & Audit Tier "]
+        AUDIT["Audit & Explanation Agent<br/>(Diagnostics & CSV Logs)"]
+    end
+
+    CAM --> ORCH
+    ORCH --> DET
+    DET --> QUAL
+    QUAL --> MASK
+    MASK --> OCC
+    OCC --> REC
+    OCC --> LIVE
+    REC --> TRACK
+    LIVE --> FUSE
+    TRACK --> FUSE
+    FUSE --> SEC
+    SEC --> AUDIT
+```
+
+### Monolithic vs. MFR-X Multi-Agent Architecture
+
+| Capability | Traditional Monolithic Pipeline | MFR-X Multi-Agent Framework |
+| :--- | :--- | :--- |
+| **Masked Face Robustness** | Fails or experiences drastic accuracy drops | Dynamically switches to 128-D upper-face periocular templates |
+| **Computational Efficiency** | Runs heavy models on every frame unconditionally | Early-exit routing drops invalid/poor-quality frames immediately |
+| **Anti-Spoofing** | Often omitted or requires secondary heavy models | Embedded lightweight optical micro-motion & landmark dynamics |
+| **Decision Explainability** | Opaque numerical similarity score only | Comprehensive audit explanation with granular agent metrics |
+| **Temporal Stability** | Prone to single-frame identification jitter | 5-frame sliding window voting algorithm eliminates flickers |
+
+---
+
+## 🤖 Multi-Agent Ecosystem
+
+The MFR-X system is governed by 10 specialized agents collaborating in real-time:
+
+| Tier | Agent | Core Technology / Algorithm | Primary Responsibility |
+| :--- | :--- | :--- | :--- |
+| **Core** | **Orchestrator Agent** | Dynamic Pipeline Dispatcher | Directs frame routing, manages early-exit triggers, and synchronizes agent state. |
+| **Perception** | **Face Detection Agent** | YuNet (MobileNet-based DNN) | Real-time face detection, 5-point landmark extraction, and bounding box normalization. |
+| **Perception** | **Face Quality Agent** | Laplacian Variance & Luminance Analysis | Evaluates sharpness, contrast, resolution, and pose to prevent degraded captures. |
+| **Perception** | **Mask Analysis Agent** | MobileNetV2 ONNX Classifier | Categorizes mask presence (`Proper Mask`, `Unmasked`, `Nose Exposed`, `Mouth Exposed`). |
+| **Perception** | **Occlusion Agent** | Anatomical Segment Visibility Ratio | Maps occlusion across forehead, eyes, nose, and mouth to select the recognition strategy. |
+| **Biometric** | **Recognition Agent** | OpenCV SFace (128-D Cosine Metric) | Extracts biometric embeddings and matches against enrolled database templates. |
+| **Biometric** | **Liveness Agent** | Landmark Micro-Dynamics & Optical Flow | Identifies 2D photo attacks, screen replays, and static presentation attacks. |
+| **Biometric** | **Temporal Tracking Agent** | 5-Frame FIFO Consensus Queue | Maintains temporal identity cohesion across consecutive video frames. |
+| **Decision** | **Fusion & Confidence Agent** | Weighted Multi-Signal Fusion | Fuses quality, visibility, similarity, and liveness scores into a unified confidence metric. |
+| **Decision** | **Security / Risk Agent** | Configurable Rule Engine | Enforces strict access policies (`VERIFIED`, `REVIEW REQUIRED`, `ACCESS DENIED`, `MASK VIOLATION`). |
+| **Intelligence**| **Audit & AI Explanation Agent**| Natural Language Reasoner & Logger | Produces real-time human-readable diagnostics and structured CSV audit reports. |
+
+---
+
+## 🧠 Deep Learning Models
+
+MFR-X utilizes optimized ONNX neural networks for low-latency, hardware-agnostic execution:
+
+| Model | Architecture | Parameter Size | Input Shape | Purpose |
+| :--- | :--- | :--- | :--- | :--- |
+| **`face_detection_yunet`** | MobileNet DNN | ~3.8 MB | Dynamic ($640 \times 480$) | Face bounding boxes & 5 facial landmarks |
+| **`face_recognition_sface`** | SphereFace / CosFace | ~36.9 MB | $112 \times 112 \times 3$ | 128-dimensional facial biometric embedding |
+| **`mask_detector`** | MobileNetV2 ONNX | ~11.5 MB | $224 \times 224 \times 3$ | Facial mask detection & wear compliance |
+
+> [!TIP]
+> **Zero-Configuration Download:** All models are downloaded automatically to the `models/` directory upon the first execution of `app.py`, `main.py`, or `verify_pipeline.py`.
+
+---
+
+## 📂 Project Structure
 
 ```text
-Live Camera Feed
-       │
-       ▼
-Orchestrator Agent
-       │
-       ├── Face Detection Agent
-       ├── Face Quality Agent
-       └── Mask Analysis Agent
-                │
-                ▼
-         Occlusion Agent
-                │
-        ┌───────┴────────┐
-        ▼                ▼
- Recognition Agent   Liveness Agent
-        │                │
-        └───────┬────────┘
-                ▼
-       Temporal Tracking
-                │
-                ▼
-     Fusion & Confidence
-                │
-                ▼
-        Security / Risk
-                │
-        ┌───────┼────────┐
-        ▼       ▼        ▼
-     Verified  Review  Unknown
-                │
-                ▼
-      Audit & Explanation
+Masked Face Recognition/
+├── app.py                      # Flask + Socket.IO real-time server & REST endpoints
+├── main.py                     # Standalone Tkinter desktop surveillance dashboard
+├── verify_pipeline.py          # Automated pipeline sanity & integration test script
+├── requirements.txt            # Project dependencies and environment specification
+├── db.json                     # Biometric profile template store (JSON-based)
+├── detection_log.db            # SQLite audit log storage
+│
+├── mfr/                        # Core MFR-X Framework Package
+│   ├── __init__.py             # Public module interface
+│   ├── detector.py             # YuNet face detector wrapper
+│   ├── recognizer.py           # SFace feature extractor & aligner
+│   ├── mask_detector.py        # MobileNetV2 mask classifier
+│   ├── database.py             # Biometric database driver & vector store
+│   ├── detection_log.py        # SQLite / CSV logging manager
+│   ├── utils.py                # Model downloader & mathematical utilities
+│   └── agents/                 # Autonomous Agent Implementations
+│       ├── __init__.py         # Agent package initialization
+│       ├── orchestrator.py     # Central Biometric Orchestrator
+│       ├── detection_agent.py  # Face detection agent
+│       ├── quality_agent.py    # Quality & sharpness validation agent
+│       ├── mask_agent.py       # Mask classification agent
+│       ├── occlusion_agent.py  # Regional occlusion mapping agent
+│       ├── recognition_agent.py# SFace feature extraction agent
+│       ├── liveness_agent.py   # Anti-spoofing & optical flow agent
+│       ├── tracking_agent.py   # Temporal consensus tracking agent
+│       ├── fusion_agent.py     # Multi-signal confidence fusion agent
+│       ├── security_agent.py   # Policy & rule evaluation agent
+│       └── audit_agent.py      # Diagnostic generator & audit logger
+│
+├── models/                     # ONNX neural network weights (Auto-downloaded)
+│   ├── face_detection_yunet_2023mar.onnx
+│   ├── face_recognition_sface_2021dec.onnx
+│   └── mask_detector.onnx
+│
+├── static/                     # Frontend UI Assets
+│   ├── css/                    # Custom CSS styling (dark glassmorphism theme)
+│   └── js/                     # Socket.IO client, video stream & UI controls
+│
+└── templates/
+    └── index.html              # Web monitoring dashboard template
 ```
 
 ---
 
-# System Architecture
+## ⚡ Installation & Quickstart
 
-MFR-X is organized into four major operational tiers.
+### Prerequisites
 
-```text
-MFR-X
-│
-├── Orchestrator Agent
-│
-├── Perception Tier
-│   ├── Face Detection Agent
-│   ├── Face Quality Agent
-│   ├── Mask Analysis Agent
-│   └── Occlusion Agent
-│
-├── Biometric Tier
-│   ├── Recognition Agent
-│   ├── Liveness / Anti-Spoof Agent
-│   └── Temporal Tracking Agent
-│
-├── Decision Tier
-│   ├── Fusion & Confidence Agent
-│   └── Security / Risk Agent
-│
-└── System Intelligence Tier
-    └── Audit & AI Explanation Agent
-```
+- **Python:** `3.10`, `3.11`, or `3.12`
+- **Hardware:** Standard CPU with web camera / RTSP stream support
+- **OS:** Windows 10/11, macOS, or Linux (Ubuntu 20.04+)
 
----
-
-# Multi-Agent Components
-
-## 1. Orchestrator Agent
-
-The **Orchestrator Agent** acts as the central execution controller for the MFR-X pipeline.
-
-It evaluates the output of upstream agents and determines which downstream agents need to be executed.
-
-For example, the system can avoid unnecessary recognition processing when:
-
-* No face is detected
-* Image quality is below the required threshold
-* The detected face does not satisfy processing requirements
-
-This conditional execution helps reduce unnecessary CPU computation.
-
----
-
-## 2. Face Detection Agent
-
-The Face Detection Agent uses **YuNet** for real-time face detection and facial landmark localization.
-
-### Responsibilities
-
-* Detect faces from live camera frames
-* Locate bounding boxes
-* Extract five facial landmarks
-* Apply spatial filtering to reduce false detections
-
----
-
-## 3. Face Quality Agent
-
-Before performing biometric recognition, the Face Quality Agent evaluates whether the captured face is suitable for recognition.
-
-### Quality Parameters
-
-* Image sharpness
-* Contrast
-* Resolution
-* Face orientation
-* Pose / tilt
-
-When the image does not satisfy the required quality conditions, the system can provide guidance such as:
-
-> "Move closer / Adjust lighting"
-
-This helps reduce unreliable recognition attempts.
-
----
-
-## 4. Mask Analysis Agent
-
-The Mask Analysis Agent uses a **MobileNetV2-based ONNX classifier** to analyze mask presence and compliance.
-
-It classifies facial mask conditions such as:
-
-* Proper Mask
-* Unmasked
-* Nose Exposed
-* Mouth Exposed
-
----
-
-## 5. Occlusion Agent
-
-The Occlusion Agent estimates the visible proportion of the face across four anatomical regions:
-
-* Forehead
-* Eyes
-* Nose
-* Mouth
-
-Based on the calculated visibility ratio, the system selects an appropriate recognition strategy.
-
-| Visibility | Recognition Strategy       |
-| ---------- | -------------------------- |
-| > 80%      | Full-Face Recognition      |
-| 40–80%     | Upper-Face Virtual Masking |
-| < 40%      | Inconclusive Review        |
-
-This allows the recognition pipeline to adapt to different levels of facial occlusion.
-
----
-
-## 6. Recognition Agent
-
-The Recognition Agent uses **OpenCV SFace** for deep facial feature extraction and identity matching.
-
-The system generates **128-dimensional face embeddings** and compares them with enrolled biometric templates using cosine similarity.
-
-For masked faces, the recognition pipeline can focus on visible upper-face features such as:
-
-* Eyes
-* Eyebrows
-* Forehead
-
-This adaptive approach allows the system to continue recognition when part of the face is covered.
-
----
-
-## 7. Liveness / Anti-Spoof Agent
-
-The Liveness Agent is responsible for detecting potential presentation attacks.
-
-It evaluates temporal visual information using signals such as:
-
-* Landmark micro-movement
-* Optical-flow continuity
-* Texture variation
-* Consecutive-frame analysis
-
-The goal is to distinguish a live subject from potential attacks involving:
-
-* Printed photographs
-* Phone screens
-* Pre-recorded video
-
----
-
-## 8. Temporal Tracking Agent
-
-The Temporal Tracking Agent improves recognition stability across consecutive frames.
-
-It maintains a **5-frame sliding window** of identification results and uses temporal information to reduce the effect of isolated frame-level errors.
-
-Example:
-
-```text
-Frame 1 → Manish
-Frame 2 → Manish
-Frame 3 → Manish
-Frame 4 → Manish
-Frame 5 → Manish
-
-Result → Stable Identity
-```
-
----
-
-## 9. Fusion & Confidence Agent
-
-The Fusion & Confidence Agent combines signals from multiple agents, including:
-
-* Recognition
-* Image quality
-* Liveness
-* Occlusion
-* Temporal tracking
-
-These signals are consolidated into a final confidence value used by the decision pipeline.
-
----
-
-## 10. Security / Risk Agent
-
-The Security / Risk Agent applies configured access policies and security rules.
-
-Possible system states include:
-
-| Status            | Description                                                          |
-| ----------------- | -------------------------------------------------------------------- |
-| `VERIFIED`        | Identity successfully verified                                       |
-| `REVIEW REQUIRED` | Recognition confidence or image conditions require additional review |
-| `ACCESS DENIED`   | Unknown identity or detected spoofing condition                      |
-| `MASK VIOLATION`  | Mask requirement not satisfied in safety mode                        |
-
----
-
-## 11. Audit & AI Explanation Agent
-
-The Audit & AI Explanation Agent provides system transparency and diagnostic information.
-
-It generates:
-
-* CSV security logs
-* Verification events
-* Agent-level diagnostic information
-* Human-readable explanations
-
-Example:
-
-```text
-Verification inconclusive:
-High facial occlusion and low liveness confidence.
-Please adjust the mask or move closer to the camera.
-```
-
----
-
-# Deep Learning Models
-
-MFR-X uses lightweight ONNX models designed for efficient CPU-based inference.
-
-| Model           | Architecture                   | Purpose                                       |
-| --------------- | ------------------------------ | --------------------------------------------- |
-| **YuNet**       | MobileNet-based DNN            | Face detection and landmark localization      |
-| **SFace**       | SphereFace / CosFace-based DNN | Face feature extraction and identity matching |
-| **MobileNetV2** | MobileNetV2 ONNX               | Mask detection and compliance classification  |
-
-### Model Files
-
-```text
-models/
-├── face_detection_yunet_2023mar.onnx
-├── face_recognition_sface_2021dec.onnx
-└── mask_detector.onnx
-```
-
-The models are automatically downloaded on first execution.
-
----
-
-# Technology Stack
-
-### Computer Vision & AI
-
-* Python
-* OpenCV
-* OpenCV DNN
-* YuNet
-* SFace
-* MobileNetV2
-* ONNX
-
-### Backend
-
-* Flask
-* Flask-SocketIO
-* Eventlet
-
-### Frontend / Desktop
-
-* HTML
-* CSS
-* JavaScript
-* Tkinter
-* Socket.IO
-
-### Data & Logging
-
-* JSON-based biometric database
-* CSV audit logs
-
----
-
-# Installation
-
-## Prerequisites
-
-* Python **3.12 or higher**
-* Webcam / camera
-* Windows, Linux, or macOS
-
----
-
-## 1. Clone the Repository
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/Manishsah098/Masked-Faced-Recognition.git
 cd "Masked Face Recognition"
 ```
 
----
+### 2. Create & Activate Virtual Environment
 
-## 2. Create a Virtual Environment
-
-```bash
-python -m venv .venv
-```
-
-### Windows — PowerShell
-
+**Windows (PowerShell):**
 ```powershell
+python -m venv .venv
 .venv\Scripts\Activate.ps1
 ```
 
-### Windows — CMD
-
+**Windows (Command Prompt):**
 ```cmd
+python -m venv .venv
 .venv\Scripts\activate.bat
 ```
 
-### macOS / Linux
-
+**macOS / Linux:**
 ```bash
+python3 -m venv .venv
 source .venv/bin/activate
 ```
 
----
-
-## 3. Install Dependencies
-
-### Desktop Application
+### 3. Install Dependencies
 
 ```bash
-pip install opencv-python numpy pillow
+pip install --upgrade pip
+pip install -r requirements.txt
 ```
 
-### Web Dashboard
+### 4. Verify System Pipeline
+
+Run the automated pipeline diagnostic suite to verify models, agent initialization, and synthetic frame processing:
 
 ```bash
-pip install opencv-python numpy pillow flask flask-socketio eventlet
+python verify_pipeline.py
 ```
-
-The required ONNX models are downloaded automatically when the application is executed for the first time.
 
 ---
 
-# Running the Application
+## 🚀 Running the Application
 
-MFR-X provides two execution modes.
+### Option A: Web Application & Real-Time Dashboard (Recommended)
 
-## Desktop Application
+Launch the Flask + Eventlet Socket.IO server:
 
-Launch the Tkinter-based multi-agent interface:
+```bash
+python app.py
+```
+
+Open your browser and navigate to:
+```text
+http://localhost:5000
+```
+
+> **Web Dashboard Features:**
+> - Zero-latency video stream via WebSocket Base64 framing.
+> - Live telemetry graphs: Sharpness, Occlusion %, Mask Compliance %, Liveness score.
+> - One-click biometric enrollment with automated 5-frame template averaging.
+> - Interactive security mode toggles (e.g., **Strict Mask Enforcement**).
+> - One-click CSV audit log export.
+
+---
+
+### Option B: Standalone Desktop Interface
+
+Launch the native desktop interface:
 
 ```bash
 python main.py
@@ -424,278 +270,123 @@ python main.py
 
 ---
 
-## Web Dashboard
+## 🔌 API Reference
 
-Start the Flask + Socket.IO server:
+MFR-X exposes RESTful endpoints and Socket.IO events for integration into security gates, access controls, or mobile apps.
 
-```bash
-python app.py
+### REST Endpoints
+
+#### `GET /api/state`
+Returns the current real-time telemetry, detected candidate, security decision, and agent breakdown.
+
+```json
+{
+  "name": "Manish Sah",
+  "mask": "Mask (98.4%)",
+  "score": "87.2%",
+  "status_msg": "ACCESS GRANTED - VERIFIED",
+  "status_color": "#2ea043",
+  "explanation": "High upper-face biometric match with valid mask compliance.",
+  "strict_mode": false,
+  "agents": {
+    "quality": { "status": "ACCEPTABLE", "score": 92.4 },
+    "occlusion": { "strategy": "UPPER_FACE", "visibility": 64.1 },
+    "liveness": { "status": "LIVE", "score": 96.0 },
+    "mask": { "is_masked": true, "mask_status": "Mask", "mask_confidence": 98.4 }
+  }
+}
 ```
 
-Then open:
+#### `GET /api/directory`
+Lists all enrolled biometric profile identifiers.
 
-```text
-http://localhost:5000
-```
+#### `POST /api/register`
+Initiates a new user biometric enrollment capture session.
+- **Payload:** `{"name": "Alice"}`
 
-The web interface provides real-time system telemetry and multi-agent processing information.
+#### `POST /api/settings`
+Updates operational parameters on the fly.
+- **Payload:** `{"strict_mode": true, "threshold": 0.45, "interval": 1}`
 
----
+#### `GET /api/export_logs`
+Generates and downloads a structured `mfrx_security_audit_log.csv` file.
 
-# Web API
-
-MFR-X exposes a REST API for system monitoring and management.
-
-| Method | Endpoint           | Description                                 |
-| ------ | ------------------ | ------------------------------------------- |
-| `GET`  | `/`                | Serves the real-time web interface          |
-| `GET`  | `/api/state`       | Returns current multi-agent detection state |
-| `GET`  | `/api/logs`        | Returns recent security logs                |
-| `GET`  | `/api/directory`   | Lists enrolled biometric profiles           |
-| `GET`  | `/api/export_logs` | Downloads the audit log                     |
-| `POST` | `/api/register`    | Registers a biometric profile               |
-| `POST` | `/api/delete_user` | Deletes a biometric profile                 |
-| `POST` | `/api/settings`    | Updates system configuration                |
-| `POST` | `/api/wipe_db`     | Clears the local biometric database         |
+#### `POST /api/wipe_db`
+Clears the registered facial biometric database.
 
 ---
 
-# Real-Time Telemetry
+### Real-Time Socket.IO Protocol
 
-The system uses **Socket.IO** for real-time communication between the web client and server.
-
-### Client → Server
-
-```text
-image
-```
-
-Sends a Base64-encoded camera frame.
-
-### Server → Client
-
-```text
-response
-```
-
-Returns the processed frame along with multi-agent telemetry such as:
-
-```text
-quality
-occlusion
-liveness
-explanation
-agent_breakdown
-```
+| Event Channel | Direction | Payload Description |
+| :--- | :--- | :--- |
+| `image` | Client $\to$ Server | Base64-encoded camera JPEG frame buffer |
+| `response` | Server $\to$ Client | Annotated processed frame + JSON telemetry payload |
 
 ---
 
-# Project Structure
+## 🛡️ Privacy & Security Compliance
 
-```text
-Masked Face Recognition/
-│
-├── app.py
-├── main.py
-├── db.json
-├── verify_pipeline.py
-│
-├── models/
-│   ├── face_detection_yunet_2023mar.onnx
-│   ├── face_recognition_sface_2021dec.onnx
-│   └── mask_detector.onnx
-│
-├── mfr/
-│   ├── __init__.py
-│   ├── detector.py
-│   ├── recognizer.py
-│   ├── mask_detector.py
-│   ├── database.py
-│   └── utils.py
-│
-├── templates/
-│   └── index.html
-│
-└── static/
-    └── CSS / JavaScript assets
-```
+Biometric data processing demands strict privacy-by-design safeguards. MFR-X implements the following architectural principles:
 
-### Core Modules
-
-| File                 | Responsibility                         |
-| -------------------- | -------------------------------------- |
-| `app.py`             | Flask + Socket.IO web server           |
-| `main.py`            | Tkinter desktop interface              |
-| `detector.py`        | YuNet face detection                   |
-| `recognizer.py`      | SFace recognition                      |
-| `mask_detector.py`   | Mask classification                    |
-| `database.py`        | Biometric profile management           |
-| `utils.py`           | Model downloading and helper functions |
-| `verify_pipeline.py` | Pipeline diagnostic testing            |
+- **🔐 100% Local Inference:** No video frames or biometric features are transmitted to third-party cloud services.
+- **🧬 Mathematical Embedding Storage:** Only 128-dimensional floating-point vectors are stored in `db.json`. Raw facial images are discarded immediately after template extraction.
+- **📝 Auditing & Accountability:** Detailed system logs capture timestamps, decision statuses, and anomaly warnings to ensure full operational traceability.
+- **🗑️ Right to Erasure:** Complete profile deletion and database wipe capabilities are provided via both the UI and REST API.
 
 ---
 
-# Key Capabilities
+## 🛠️ Diagnostics & Troubleshooting
 
-* Real-time face detection
-* Mask-aware face recognition
-* Facial occlusion analysis
-* Adaptive recognition strategies
-* CPU-optimized inference
-* Liveness / anti-spoof analysis
-* Temporal identity stabilization
-* Multi-signal confidence fusion
-* Configurable security policies
-* Real-time web telemetry
-* Desktop monitoring interface
-* CSV audit logging
-* AI-generated diagnostic explanations
+<details>
+<summary><b>1. Camera / Video Feed not loading in Web Dashboard?</b></summary>
 
----
+- Ensure your browser has granted camera access permissions to `http://localhost:5000`.
+- Verify no other application (e.g., Zoom, Teams, Desktop GUI `main.py`) is locking the webcam hardware.
+</details>
 
-# Example Decision Pipeline
+<details>
+<summary><b>2. ONNX model download errors?</b></summary>
 
-```text
-Camera Frame
-     │
-     ▼
-Face Detection
-     │
-     ▼
-Quality Assessment
-     │
-     ├── Poor Quality ──► User Guidance
-     │
-     ▼
-Mask Analysis
-     │
-     ▼
-Occlusion Analysis
-     │
-     ├── High Visibility ──► Full-Face Recognition
-     │
-     ├── Partial Visibility ──► Upper-Face Recognition
-     │
-     └── Very Low Visibility ──► Review Required
-     │
-     ▼
-Liveness Verification
-     │
-     ▼
-Temporal Tracking
-     │
-     ▼
-Confidence Fusion
-     │
-     ▼
-Security / Risk Evaluation
-     │
-     ├── VERIFIED
-     ├── REVIEW REQUIRED
-     ├── ACCESS DENIED
-     └── MASK VIOLATION
-     │
-     ▼
-Audit & Explanation
-```
+- Ensure an active internet connection on the initial launch.
+- If behind a corporate firewall, models can be manually placed into the `models/` directory matching the names in `requirements.txt`.
+</details>
+
+<details>
+<summary><b>3. Low frame rate or lagging video?</b></summary>
+
+- Increase the frame interval in the Web Dashboard settings (e.g., process every 2nd or 3rd frame).
+- Verify that `eventlet` is properly installed to enable asynchronous non-blocking I/O.
+</details>
 
 ---
 
-# Performance-Oriented Design
+## 🤝 Contributing
 
-MFR-X is designed with CPU efficiency in mind.
+Contributions, issues, and feature suggestions are welcome!
 
-The multi-agent architecture allows the system to make conditional processing decisions rather than executing every component for every frame.
-
-For example:
-
-```text
-No Face
-   ↓
-Stop Processing
-
-Poor Quality
-   ↓
-Request Better Capture
-
-Valid Face
-   ↓
-Continue Recognition Pipeline
-```
-
-This approach helps reduce unnecessary computation during real-time operation.
+1. Fork the Repository: `https://github.com/Manishsah098/Masked-Faced-Recognition`
+2. Create your Feature Branch: `git checkout -b feature/AmazingFeature`
+3. Commit your Changes: `git commit -m "Add AmazingFeature"`
+4. Push to the Branch: `git push origin feature/AmazingFeature`
+5. Open a Pull Request
 
 ---
 
-# Use Cases
+## 📄 License
 
-MFR-X can serve as a research and demonstration platform for applications involving:
-
-* Access-control research
-* Mask-aware biometric verification
-* Smart surveillance research
-* Computer vision experimentation
-* Anti-spoofing research
-* Real-time biometric systems
-* Multi-agent AI architectures
-* Hackathon demonstrations
-* Edge / CPU-based AI applications
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
 
 ---
 
-# Research & Hackathon Project
-
-MFR-X was developed as a **research and hackathon demonstration project** exploring the combination of:
-
-> **Computer Vision + Biometrics + Multi-Agent AI + Real-Time Processing**
-
-The project demonstrates how a complex biometric pipeline can be decomposed into specialized agents that independently analyze different aspects of the input before contributing to a final system decision.
-
----
-
-# Privacy & Security Considerations
-
-Because this system processes biometric information, deployments should consider:
-
-* User consent
-* Secure storage of biometric templates
-* Access control
-* Data retention policies
-* Encryption
-* Appropriate legal and regulatory requirements
-* Protection of audit logs
-* Secure deletion of biometric data
-
-This repository is intended primarily for **research, development, and demonstration purposes**.
-
----
-
-# License & Attribution
-
-Developed for research and hackathon demonstration.
-
-Built with:
-
-* **OpenCV**
-* **Flask**
-* **Flask-SocketIO**
-* **ONNX**
-* **Python**
-
----
-
-# Author
+## 👨‍💻 Author
 
 **Manish Sah**
+- **GitHub:** [@Manishsah098](https://github.com/Manishsah098)
+- **Project Repository:** [Masked-Faced-Recognition](https://github.com/Manishsah098/Masked-Faced-Recognition)
 
-Computer Science & Engineering
+<div align="center">
 
-GitHub: `Manishsah098`
+*Built with passion for resilient computer vision, biometric security, and multi-agent AI systems.*
 
----
-
-## Project Summary
-
-**MFR-X is a real-time, CPU-optimized, multi-agent biometric verification system that combines face detection, mask analysis, occlusion assessment, recognition, liveness detection, temporal tracking, confidence fusion, and security evaluation into a unified pipeline.**
-
-The architecture demonstrates a modular approach to building robust computer vision systems where specialized AI agents collaborate to produce a final, explainable verification result.
+</div>
