@@ -390,4 +390,4 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 *Built with passion for resilient computer vision, biometric security, and multi-agent AI systems.*
 
 </div>
-ADD MANISH BY HEART
+
