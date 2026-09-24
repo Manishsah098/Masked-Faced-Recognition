@@ -5,15 +5,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusDot = document.getElementById('system-status-dot');
 
     socket.on('connect', () => {
-        statusText.innerText = "System Online";
-        statusDot.className = "dot active";
-        statusDot.style.backgroundColor = '#2ea043';
+        if (statusText) statusText.innerText = "Swarm Online (10 Agents)";
+        if (statusDot) {
+            statusDot.className = "dot active";
+            statusDot.style.backgroundColor = 'var(--emerald)';
+        }
     });
 
     socket.on('disconnect', () => {
-        statusText.innerText = "System Disconnected";
-        statusDot.className = "dot";
-        statusDot.style.backgroundColor = '#f85149';
+        if (statusText) statusText.innerText = "Pipeline Disconnected";
+        if (statusDot) {
+            statusDot.className = "dot";
+            statusDot.style.backgroundColor = 'var(--red)';
+        }
     });
 
     // --- NAVIGATION ---
@@ -30,8 +34,11 @@ document.addEventListener('DOMContentLoaded', () => {
             
             item.classList.add('active');
             const targetId = item.getAttribute('data-target');
-            document.getElementById(targetId).classList.remove('hidden-view');
-            document.getElementById(targetId).classList.add('active-view');
+            const targetView = document.getElementById(targetId);
+            if (targetView) {
+                targetView.classList.remove('hidden-view');
+                targetView.classList.add('active-view');
+            }
 
             if (targetId === 'directory-view') loadDirectory();
             if (targetId === 'logs-view') fetchLogs();
@@ -45,17 +52,20 @@ document.addEventListener('DOMContentLoaded', () => {
         unmasked: 0,
         violations: 0
     };
+    let totalScans = 0;
 
     function initChart() {
-        const ctx = document.getElementById('complianceChart').getContext('2d');
+        const chartElem = document.getElementById('complianceChart');
+        if (!chartElem) return;
+        const ctx = chartElem.getContext('2d');
         complianceChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['Masked', 'Unmasked', 'Violations'],
+                labels: ['Compliant (Masked)', 'Standard (Unmasked)', 'Violations'],
                 datasets: [{
                     data: [0, 0, 0],
-                    backgroundColor: ['#58a6ff', '#2ea043', '#f85149'],
-                    borderColor: '#161b22',
+                    backgroundColor: ['#00f0ff', '#00e676', '#ff3366'],
+                    borderColor: '#0d131d',
                     borderWidth: 2
                 }]
             },
@@ -66,25 +76,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     legend: {
                         position: 'right',
                         labels: {
-                            color: '#8b949e',
-                            font: { size: 9, family: 'Inter' },
+                            color: '#8b99ad',
+                            font: { size: 9.5, family: 'Inter' },
                             boxWidth: 8
                         }
                     }
                 },
-                cutout: '65%'
+                cutout: '68%'
             }
         });
     }
 
     function updateChartStats(name, mask, status_msg) {
         if (name === '-') return;
+        totalScans++;
         
-        if (status_msg.includes('VIOLATION') || status_msg.includes('BLOCKED')) {
+        const totalScansElem = document.getElementById('total-scans-text');
+        if (totalScansElem) totalScansElem.innerText = `${totalScans} verified scans`;
+
+        if (status_msg.includes('VIOLATION') || status_msg.includes('BLOCKED') || status_msg.includes('DENIED')) {
             complianceStats.violations++;
-        } else if (mask.includes('Masked')) {
+        } else if (mask.includes('Mask')) {
             complianceStats.masked++;
-        } else if (mask.includes('Unmasked')) {
+        } else {
             complianceStats.unmasked++;
         }
         
@@ -101,35 +115,64 @@ document.addEventListener('DOMContentLoaded', () => {
     initChart();
 
     // --- TEXT-TO-SPEECH (TTS) AUDIO ALERTS ---
+    let voiceEnabled = localStorage.getItem('mfr_voice_alerts') !== 'false';
     let lastVoiceTime = 0;
 
-    function speak(text) {
-        const now = Date.now();
-        // Strict global cooldown of 5 seconds to let the browser speak the full sentence
-        // without stuttering, clipping, or canceling itself due to detection noise
-        if (now - lastVoiceTime < 5000) {
-            return;
+    const btnVoiceToggle = document.getElementById('btn-voice-toggle');
+    const voiceIcon = document.getElementById('voice-icon');
+
+    function updateVoiceBtnState() {
+        if (!btnVoiceToggle) return;
+        if (voiceEnabled) {
+            btnVoiceToggle.classList.add('active');
+            if (voiceIcon) voiceIcon.className = 'fa-solid fa-volume-high';
+        } else {
+            btnVoiceToggle.classList.remove('active');
+            if (voiceIcon) voiceIcon.className = 'fa-solid fa-volume-xmark';
         }
+    }
+
+    if (btnVoiceToggle) {
+        updateVoiceBtnState();
+        btnVoiceToggle.addEventListener('click', () => {
+            voiceEnabled = !voiceEnabled;
+            localStorage.setItem('mfr_voice_alerts', voiceEnabled);
+            updateVoiceBtnState();
+        });
+    }
+
+    function speak(text) {
+        if (!voiceEnabled) return;
+        const now = Date.now();
+        // Cooldown of 5 seconds to prevent spam/stutter
+        if (now - lastVoiceTime < 5000) return;
         lastVoiceTime = now;
         
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0;
-        window.speechSynthesis.speak(utterance);
+        try {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                window.speechSynthesis.speak(utterance);
+            }
+        } catch (e) {
+            console.warn("TTS error:", e);
+        }
     }
 
     function handleVoiceAlerts(name, mask, status_msg) {
         if (name === '-') return;
         
         if (status_msg.includes('VIOLATION') || status_msg.includes('BLOCKED')) {
-            speak(`Warning: Please wear a mask, ${name}`);
-        } else if (name === 'Unknown') {
-            speak("Access Denied: Unregistered user");
-        } else {
+            speak(`Notice: Face mask required, ${name}`);
+        } else if (name === 'Unknown' || status_msg.includes('DENIED')) {
+            speak("Access Denied: Unregistered profile");
+        } else if (status_msg.includes('GRANTED') || status_msg.includes('VERIFIED')) {
             speak(`Access Granted: Welcome ${name}`);
         }
     }
 
-    // --- BROWSER WEBCAM STREAMING (SOCKET.IO) ---
+    // --- BROWSER WEBCAM STREAMING & FPS METRICS ---
     const video = document.getElementById('webcam');
     const canvas = document.getElementById('hidden-canvas');
     const ctx = canvas.getContext('2d');
@@ -144,12 +187,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentStream = null;
     let loopRunning = false;
 
+    // Performance FPS tracker
+    let frameCount = 0;
+    let lastFpsCalc = Date.now();
+    let currentFps = 30;
+
     // Persisted preferences
     let selectedCameraId = localStorage.getItem('mfr_camera_id') || '';
     let mirrorH = localStorage.getItem('mfr_mirror_h') === 'true';
     let flipV = localStorage.getItem('mfr_flip_v') === 'true';
 
-    // Update button visual states on load
     if (btnMirror && mirrorH) btnMirror.classList.add('active');
     if (btnFlipV && flipV) btnFlipV.classList.add('active');
 
@@ -191,13 +238,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function startCamera(deviceId = null) {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            console.error("Camera API unavailable. Webcams require HTTPS or localhost.");
-            statusText.innerText = "Camera Error: Requires HTTPS";
-            statusDot.style.backgroundColor = '#f85149';
+            if (statusText) statusText.innerText = "Camera Requires HTTPS/Localhost";
             return;
         }
 
-        // Stop existing camera stream
         if (currentStream) {
             currentStream.getTracks().forEach(track => track.stop());
             currentStream = null;
@@ -221,14 +265,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             onStreamSuccess(stream, chosenId);
         } catch (err) {
-            console.warn("Primary camera constraints failed, attempting fallback:", err);
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 onStreamSuccess(stream);
             } catch (err2) {
-                console.error("Camera access failed completely:", err2);
-                statusText.innerText = "Camera Access Error/Denied";
-                statusDot.style.backgroundColor = '#f85149';
+                console.error("Camera access failed:", err2);
+                if (statusText) statusText.innerText = "Camera Access Denied";
             }
         }
     }
@@ -248,7 +290,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Re-populate device list with granted labels
         enumerateCameraDevices();
 
         const playPromise = video.play();
@@ -258,8 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     loopRunning = true;
                     requestAnimationFrame(captureLoop);
                 }
-            }).catch(err => {
-                console.warn("video.play() auto-play prevented:", err);
+            }).catch(() => {
                 if (!loopRunning) {
                     loopRunning = true;
                     requestAnimationFrame(captureLoop);
@@ -309,13 +349,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function captureLoop() {
         const now = Date.now();
-        // Pull-based sync: Only send next frame if previous finished or timeout
         if ((!isProcessing || (now - lastSendTime > 1000)) && socket.connected) {
             sendFrame();
         }
         setTimeout(() => {
             requestAnimationFrame(captureLoop);
-        }, 60);
+        }, 50);
     }
 
     function sendFrame() {
@@ -332,100 +371,197 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.drawImage(video, 0, 0, 640, 480);
         ctx.restore();
 
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.5); // Highly compressed JPEG for speed
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.55);
         socket.emit('image', dataUrl);
     }
 
-    // Handle annotated responses from server
+    // --- HANDLE MULTI-AGENT RESPONSE FROM SERVER ---
     socket.on('response', (data) => {
-        isProcessing = false; // Release lock to allow next frame capture
-        
-        // Render HUD frame
-        feedImg.src = data.image;
+        isProcessing = false;
+        const now = Date.now();
+        const latency = now - lastSendTime;
 
-        // Render variables
-        document.getElementById('stat-name').innerText = data.state.name;
-        document.getElementById('stat-mask').innerText = data.state.mask;
-        document.getElementById('stat-score').innerText = data.state.score;
-        
+        // Update FPS Counter
+        frameCount++;
+        if (now - lastFpsCalc >= 1000) {
+            currentFps = frameCount;
+            frameCount = 0;
+            lastFpsCalc = now;
+            const fpsElem = document.getElementById('fps-display');
+            const latElem = document.getElementById('latency-display');
+            if (fpsElem) fpsElem.innerText = `${currentFps} FPS`;
+            if (latElem) latElem.innerText = `${latency} ms`;
+        }
+
+        // Render Annotated HUD frame
+        if (feedImg && data.image) {
+            feedImg.src = data.image;
+        }
+
+        const state = data.state;
+        if (!state) return;
+
+        // Top Status & Candidate
+        const statName = document.getElementById('stat-name');
+        const statScore = document.getElementById('stat-score');
         const authText = document.getElementById('auth-status-text');
         const authBox = document.getElementById('auth-status-box');
-        authText.innerText = data.state.status_msg;
-        authText.style.color = data.state.status_color;
-        authBox.style.borderLeftColor = data.state.status_color;
+        const confBar = document.getElementById('confidence-bar');
+        const xaiText = document.getElementById('xai-explanation');
+
+        if (statName) statName.innerText = state.name || '-';
+        if (statScore) statScore.innerText = state.score || '0.0%';
+        if (authText) {
+            authText.innerText = state.status_msg || 'SCANNING...';
+            authText.style.color = state.status_color || 'var(--cyan)';
+        }
+        if (authBox) {
+            authBox.style.borderLeftColor = state.status_color || 'var(--cyan)';
+        }
+
+        // Numeric Confidence Score Parse
+        if (confBar) {
+            const rawScore = parseFloat((state.score || '0').replace('%', ''));
+            confBar.style.width = Math.min(100, Math.max(0, rawScore)) + '%';
+        }
+
+        // Explainable AI Reasoning
+        if (xaiText && state.explanation) {
+            xaiText.innerText = state.explanation;
+        }
+
+        // 10-Agent Live Telemetry Unpacking
+        if (state.agents) {
+            const agents = state.agents;
+
+            // 1. Quality Agent
+            if (agents.quality) {
+                const qScore = document.getElementById('stat-quality-score');
+                const qStatus = document.getElementById('stat-quality-status');
+                const qBar = document.getElementById('quality-bar');
+                if (qScore) qScore.innerText = agents.quality.sharpness ? `${agents.quality.sharpness.toFixed(1)}` : `${agents.quality.score || 0}%`;
+                if (qStatus) qStatus.innerText = agents.quality.status || 'OK';
+                if (qBar) qBar.style.width = Math.min(100, (agents.quality.score || 0)) + '%';
+            }
+
+            // 2. Mask Agent
+            if (agents.mask) {
+                const mVal = document.getElementById('stat-mask');
+                const mBadge = document.getElementById('stat-mask-badge');
+                const mBar = document.getElementById('mask-bar');
+                if (mVal) mVal.innerText = state.mask;
+                if (mBadge) mBadge.innerText = agents.mask.is_masked ? 'MASKED' : 'UNMASKED';
+                if (mBar) mBar.style.width = (agents.mask.mask_confidence || 0) + '%';
+            }
+
+            // 3. Occlusion Strategy Agent
+            if (agents.occlusion) {
+                const sBadge = document.getElementById('stat-strategy-badge');
+                const visVal = document.getElementById('stat-visibility');
+                const visBar = document.getElementById('visibility-bar');
+                if (sBadge) sBadge.innerText = agents.occlusion.strategy || 'FULL';
+                if (visVal) visVal.innerText = `${(agents.occlusion.visibility || 100).toFixed(0)}%`;
+                if (visBar) visBar.style.width = `${agents.occlusion.visibility || 100}%`;
+            }
+
+            // 4. Liveness Anti-Spoof Agent
+            if (agents.liveness) {
+                const lStatus = document.getElementById('stat-liveness-status');
+                const lScore = document.getElementById('stat-liveness-score');
+                const lBar = document.getElementById('liveness-bar');
+                if (lStatus) lStatus.innerText = agents.liveness.status || 'LIVE';
+                if (lScore) lScore.innerText = `${(agents.liveness.score || 95).toFixed(1)}%`;
+                if (lBar) lBar.style.width = `${agents.liveness.score || 95}%`;
+            }
+        }
 
         // Voice alert trigger
-        handleVoiceAlerts(data.state.name, data.state.mask, data.state.status_msg);
+        handleVoiceAlerts(state.name, state.mask, state.status_msg);
 
         // Chart stats trigger
-        updateChartStats(data.state.name, data.state.mask, data.state.status_msg);
+        updateChartStats(state.name, state.mask, state.status_msg);
     });
 
-    // --- REGISTRATION LOGIC ---
+    // --- REGISTRATION / ENROLLMENT LOGIC ---
     const btnStartReg = document.getElementById('btn-start-reg');
     let regPollInterval = null;
 
-    btnStartReg.addEventListener('click', async () => {
-        const name = document.getElementById('reg-name').value;
-        if (!name) return alert("Please enter a name first.");
+    if (btnStartReg) {
+        btnStartReg.addEventListener('click', async () => {
+            const nameInput = document.getElementById('reg-name');
+            const name = nameInput ? nameInput.value.trim() : '';
+            if (!name) return alert("Please enter a subject full name first.");
 
-        btnStartReg.disabled = true;
-        btnStartReg.innerText = "Acquiring Biometrics...";
+            btnStartReg.disabled = true;
+            btnStartReg.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Acquiring Biometrics...';
 
-        try {
-            await fetch('/api/register', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ name })
-            });
+            try {
+                await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ name })
+                });
 
-            if (regPollInterval) clearInterval(regPollInterval);
-            regPollInterval = setInterval(pollRegistrationStatus, 500);
-        } catch (e) {
-            alert("Registration request failed.");
-            btnStartReg.disabled = false;
-        }
-    });
+                if (regPollInterval) clearInterval(regPollInterval);
+                regPollInterval = setInterval(pollRegistrationStatus, 400);
+            } catch (e) {
+                alert("Biometric enrollment request failed.");
+                btnStartReg.disabled = false;
+                btnStartReg.innerHTML = '<i class="fa-solid fa-camera-retro"></i> Start Multi-Frame Acquisition';
+            }
+        });
+    }
 
     async function pollRegistrationStatus() {
         try {
             const res = await fetch('/api/register_status');
             const data = await res.json();
             
-            document.getElementById('reg-status-text').innerText = data.status_text;
-            document.getElementById('reg-progress-bar').style.width = data.progress + "%";
+            const regText = document.getElementById('reg-status-text');
+            const regBar = document.getElementById('reg-progress-bar');
+            const regPct = document.getElementById('reg-percentage');
 
-            if (!data.is_registering && data.progress === 0 && data.status_text !== "ALERT: Remove mask to register!") {
+            if (regText) regText.innerText = data.status_text;
+            if (regBar) regBar.style.width = data.progress + "%";
+            if (regPct) regPct.innerText = Math.round(data.progress) + "%";
+
+            if (!data.is_registering && data.progress === 0 && !data.status_text.includes("ALERT")) {
                 clearInterval(regPollInterval);
-                btnStartReg.disabled = false;
-                btnStartReg.innerText = "Start Profile Acquisition";
-                document.getElementById('reg-name').value = '';
+                if (btnStartReg) {
+                    btnStartReg.disabled = false;
+                    btnStartReg.innerHTML = '<i class="fa-solid fa-camera-retro"></i> Start Multi-Frame Acquisition';
+                }
+                const nameInput = document.getElementById('reg-name');
+                if (nameInput) nameInput.value = '';
+                loadDirectory();
             }
         } catch (e) {
-            console.error(e);
+            console.error("Poll registration error:", e);
         }
     }
 
-    // --- LOGS LOGIC ---
-    let logsInterval = setInterval(fetchLogs, 2000);
+    // --- SYSTEM LOGS CONSOLE ---
+    let logsInterval = setInterval(fetchLogs, 2500);
 
     async function fetchLogs() {
-        if (!document.getElementById('logs-view').classList.contains('active-view')) return;
+        const logsView = document.getElementById('logs-view');
+        if (!logsView || !logsView.classList.contains('active-view')) return;
         try {
             const res = await fetch('/api/logs');
             const data = await res.json();
             
             const container = document.getElementById('logs-container');
+            if (!container) return;
             container.innerHTML = '';
             
             data.logs.forEach(log => {
                 const div = document.createElement('div');
                 div.className = 'log-entry';
                 
-                if (log.includes('DETECTED:')) div.classList.add('log-detected');
-                else if (log.includes('ALERT:') || log.includes('VIOLATION:') || log.includes('ERROR:')) div.classList.add('log-alert');
+                if (log.includes('DETECTED:') || log.includes('GRANTED')) div.classList.add('log-detected');
+                else if (log.includes('ALERT:') || log.includes('VIOLATION:') || log.includes('ERROR:') || log.includes('DENIED')) div.classList.add('log-alert');
                 else if (log.includes('WARNING:')) div.classList.add('log-warning');
-                else if (log.includes('DATABASE:')) div.classList.add('log-database');
+                else if (log.includes('DATABASE:') || log.includes('REGISTERED:')) div.classList.add('log-database');
                 else div.classList.add('log-system');
                 
                 div.innerText = log;
@@ -434,41 +570,70 @@ document.addEventListener('DOMContentLoaded', () => {
             
             container.scrollTop = container.scrollHeight;
         } catch (e) {
-            console.error("Logs error", e);
+            console.error("Logs fetch error:", e);
         }
     }
 
-    // --- DIRECTORY LOGIC ---
+    // --- DIRECTORY LOGIC & SEARCH ---
+    let allDirectoryUsers = [];
+
     async function loadDirectory() {
         try {
             const res = await fetch('/api/directory');
             const data = await res.json();
+            allDirectoryUsers = data.users || [];
             
-            const tbody = document.getElementById('directory-tbody');
-            tbody.innerHTML = '';
-            
-            if (data.users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px;">No users enrolled.</td></tr>';
-                return;
-            }
+            const countElem = document.getElementById('nav-user-count');
+            if (countElem) countElem.innerText = allDirectoryUsers.length;
 
-            data.users.forEach(name => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${name}</strong></td>
-                    <td><span class="status-badge status-active">● ACTIVE</span></td>
-                    <td><span class="status-badge status-adaptive">● ADAPTIVE MASKED</span></td>
-                    <td><button class="btn-small" onclick="deleteUser('${name}')">Delete</button></td>
-                `;
-                tbody.appendChild(tr);
-            });
+            renderDirectoryTable(allDirectoryUsers);
         } catch (e) {
-            console.error(e);
+            console.error("Load directory error:", e);
         }
     }
 
+    function renderDirectoryTable(users) {
+        const tbody = document.getElementById('directory-tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        
+        if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:32px; color:var(--text-dim);"><i class="fa-solid fa-folder-open" style="font-size:24px; margin-bottom:8px; display:block;"></i>No enrolled biometric profiles found.</td></tr>';
+            return;
+        }
+
+        users.forEach(name => {
+            const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) || 'ID';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>
+                    <div class="user-identity-cell">
+                        <div class="user-avatar-circle">${initials}</div>
+                        <div>
+                            <strong>${name}</strong>
+                            <div style="font-family:var(--font-mono); font-size:10px; color:var(--text-dim);">ID: SFace-128D</div>
+                        </div>
+                    </div>
+                </td>
+                <td><span class="status-badge-pill status-ok"><i class="fa-solid fa-check"></i> 128-D EMBEDDING</span></td>
+                <td><span class="status-badge-pill status-ok"><i class="fa-solid fa-mask"></i> PERIOCULAR READY</span></td>
+                <td><button class="btn-table-delete" onclick="deleteUser('${name}')"><i class="fa-solid fa-trash"></i> Revoke</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    const searchInput = document.getElementById('directory-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            const filtered = allDirectoryUsers.filter(u => u.toLowerCase().includes(query));
+            renderDirectoryTable(filtered);
+        });
+    }
+
     window.deleteUser = async function(name) {
-        if (!confirm(`Delete profile '${name}'?`)) return;
+        if (!confirm(`Are you sure you want to revoke biometric credential for '${name}'?`)) return;
         try {
             await fetch('/api/delete_user', {
                 method: 'POST',
@@ -477,48 +642,90 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             loadDirectory();
         } catch (e) {
-            console.error(e);
+            console.error("Delete user error:", e);
+        }
+    };
+
+    // Initial load of directory count
+    loadDirectory();
+
+    // --- SETTINGS & CALIBRATION LOGIC ---
+    const strictToggle = document.getElementById('strict-mode-toggle');
+    if (strictToggle) {
+        strictToggle.addEventListener('change', async (e) => {
+            await fetch('/api/settings', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ strict_mode: e.target.checked })
+            });
+        });
+    }
+
+    const threshSlider = document.getElementById('threshold-slider');
+    const threshVal = document.getElementById('threshold-val');
+    const presetBadges = document.querySelectorAll('.preset-badge');
+
+    if (threshSlider) {
+        threshSlider.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value).toFixed(3);
+            if (threshVal) threshVal.innerText = val;
+        });
+
+        threshSlider.addEventListener('change', async (e) => {
+            const val = parseFloat(e.target.value).toFixed(3);
+            await updateThreshold(val);
+        });
+    }
+
+    presetBadges.forEach(badge => {
+        badge.addEventListener('click', async () => {
+            presetBadges.forEach(b => b.classList.remove('active'));
+            badge.classList.add('active');
+            const targetThresh = badge.getAttribute('data-threshold');
+            if (threshSlider) threshSlider.value = targetThresh;
+            if (threshVal) threshVal.innerText = targetThresh;
+            await updateThreshold(targetThresh);
+        });
+    });
+
+    async function updateThreshold(val) {
+        try {
+            await fetch('/api/settings', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ threshold: val })
+            });
+        } catch (e) {
+            console.error("Threshold update error:", e);
         }
     }
 
-    // --- SETTINGS LOGIC ---
-    const strictToggle = document.getElementById('strict-mode-toggle');
-    strictToggle.addEventListener('change', async (e) => {
-        await fetch('/api/settings', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ strict_mode: e.target.checked })
-        });
-    });
-
-    const threshSlider = document.getElementById('threshold-slider');
-    threshSlider.addEventListener('change', async (e) => {
-        const val = parseFloat(e.target.value).toFixed(3);
-        document.getElementById('threshold-val').innerText = val;
-        await fetch('/api/settings', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ threshold: val })
-        });
-    });
-
     const intervalSlider = document.getElementById('interval-slider');
-    intervalSlider.addEventListener('change', async (e) => {
-        const val = e.target.value;
-        document.getElementById('interval-val').innerText = `${val} frames`;
-        await fetch('/api/settings', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ interval: val })
+    const intervalVal = document.getElementById('interval-val');
+
+    if (intervalSlider) {
+        intervalSlider.addEventListener('input', (e) => {
+            if (intervalVal) intervalVal.innerText = `${e.target.value} frames`;
         });
-    });
+
+        intervalSlider.addEventListener('change', async (e) => {
+            const val = e.target.value;
+            await fetch('/api/settings', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ interval: val })
+            });
+        });
+    }
 
     const btnWipe = document.getElementById('btn-wipe-db');
-    btnWipe.addEventListener('click', async () => {
-        if (confirm("CRITICAL WARNING: Wipe entire database?")) {
-            await fetch('/api/wipe_db', { method: 'POST' });
-            alert("Database wiped.");
-        }
-    });
-
+    if (btnWipe) {
+        btnWipe.addEventListener('click', async () => {
+            if (confirm("CRITICAL SECURITY ACTION: Permanently wipe all biometric vector records in db.json?")) {
+                await fetch('/api/wipe_db', { method: 'POST' });
+                alert("Biometric database wiped successfully.");
+                loadDirectory();
+            }
+        });
+    }
 });
