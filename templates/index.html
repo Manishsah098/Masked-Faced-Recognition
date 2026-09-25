@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Face Analyst - Real-Time Compliance</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <title>MFR-X Enterprise — Multi-Agent Biometric Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Socket.IO CDN -->
@@ -17,37 +19,65 @@
         <!-- Sidebar Navigation -->
         <nav class="sidebar">
             <div class="brand">
-                <i class="fa-solid fa-gem brand-icon"></i>
+                <div class="brand-icon-wrapper">
+                    <i class="fa-solid fa-fingerprint brand-icon"></i>
+                </div>
                 <div class="brand-text">
-                    <h1>Face Analyst</h1>
-                    <span>MASKED FACE RECOGNITION</span>
+                    <h1>MFR-X Enterprise</h1>
+                    <span>MULTI-AGENT BIOMETRICS</span>
                 </div>
             </div>
             
             <ul class="nav-links">
                 <li class="active" data-target="camera-view">
-                    <i class="fa-solid fa-video"></i> Live Camera
+                    <i class="fa-solid fa-video"></i> 
+                    <span>Live Scanner</span>
+                    <span class="nav-badge live-pulse">LIVE</span>
                 </li>
                 <li data-target="register-view">
-                    <i class="fa-solid fa-user-plus"></i> Register User
+                    <i class="fa-solid fa-user-plus"></i> 
+                    <span>Enroll Profile</span>
                 </li>
                 <li data-target="directory-view">
-                    <i class="fa-solid fa-users"></i> User Directory
+                    <i class="fa-solid fa-id-card-clip"></i> 
+                    <span>User Directory</span>
+                    <span id="nav-user-count" class="nav-count">0</span>
                 </li>
                 <li data-target="logs-view">
-                    <i class="fa-solid fa-shield-halved"></i> System Logs
+                    <i class="fa-solid fa-shield-halved"></i> 
+                    <span>Audit Logs</span>
                 </li>
                 <li data-target="settings-view">
-                    <i class="fa-solid fa-gear"></i> Settings
+                    <i class="fa-solid fa-sliders"></i> 
+                    <span>Calibration</span>
                 </li>
             </ul>
+
+            <div class="sidebar-agent-status">
+                <div class="agent-status-header">
+                    <span>AGENT SWARM STATUS</span>
+                    <span class="agent-count-badge">10/10 ONLINE</span>
+                </div>
+                <div class="agent-mini-grid">
+                    <span class="agent-chip active" title="Face Detection Agent (YuNet)">DET</span>
+                    <span class="agent-chip active" title="Quality Assessment Agent">QUAL</span>
+                    <span class="agent-chip active" title="Mask Analysis Agent">MASK</span>
+                    <span class="agent-chip active" title="Occlusion Strategy Agent">OCC</span>
+                    <span class="agent-chip active" title="Biometric Recognition Agent (SFace)">REC</span>
+                    <span class="agent-chip active" title="Liveness Anti-Spoof Agent">LIVE</span>
+                    <span class="agent-chip active" title="Temporal Consensus Tracking Agent">TRK</span>
+                    <span class="agent-chip active" title="Multi-Signal Fusion Agent">FUS</span>
+                    <span class="agent-chip active" title="Security & Policy Agent">SEC</span>
+                    <span class="agent-chip active" title="Audit & XAI Agent">XAI</span>
+                </div>
+            </div>
 
             <div class="sidebar-footer">
                 <div class="status-indicator">
                     <span class="dot active" id="system-status-dot"></span>
                     <span id="system-status-text">Connecting...</span>
                 </div>
-                <div class="powered-by">Powered by YuNet & SFace & WebSockets</div>
+                <div class="powered-by">YuNet • SFace • MobileNetV2 • Local Edge</div>
             </div>
         </nav>
 
@@ -58,21 +88,34 @@
             <section id="camera-view" class="view active-view">
                 <header class="view-header camera-header">
                     <div>
-                        <h2>Real-Time Face Scanner</h2>
-                        <p>Webcam stream decoded on-the-fly via high-speed bidirectional WebSockets</p>
+                        <div class="header-badge-row">
+                            <span class="tier-pill"><i class="fa-solid fa-microchip"></i> ONNX NEURAL CORE</span>
+                            <span class="tier-pill"><i class="fa-solid fa-shield"></i> ZERO-CLOUD PRIVACY</span>
+                        </div>
+                        <h2>Real-Time Biometric Scanner</h2>
+                        <p>Autonomous 10-agent pipeline executing edge detection, periocular biometrics, and anti-spoofing</p>
                     </div>
                     <div class="camera-toolbar">
+                        <div class="perf-counter" id="perf-pill" title="Live Inference Telemetry">
+                            <i class="fa-solid fa-gauge-high"></i>
+                            <span id="fps-display">-- FPS</span>
+                            <span class="perf-divider">|</span>
+                            <span id="latency-display">-- ms</span>
+                        </div>
                         <div class="camera-select-box">
-                            <i class="fa-solid fa-video"></i>
+                            <i class="fa-solid fa-camera"></i>
                             <select id="camera-select" title="Select Video Device">
                                 <option value="">Detecting cameras...</option>
                             </select>
                         </div>
+                        <button id="btn-voice-toggle" class="btn-camera-ctrl active" title="Toggle Voice Alerts">
+                            <i class="fa-solid fa-volume-high" id="voice-icon"></i> Voice
+                        </button>
                         <button id="btn-mirror-cam" class="btn-camera-ctrl" title="Mirror / Flip Horizontally">
-                            <i class="fa-solid fa-arrows-left-right"></i> Mirror
+                            <i class="fa-solid fa-arrows-left-right"></i>
                         </button>
                         <button id="btn-flipv-cam" class="btn-camera-ctrl" title="Invert / Flip Vertically">
-                            <i class="fa-solid fa-arrows-up-down"></i> Flip V
+                            <i class="fa-solid fa-arrows-up-down"></i>
                         </button>
                         <button id="btn-refresh-cam" class="btn-camera-ctrl btn-icon-only" title="Reload / Reconnect Camera">
                             <i class="fa-solid fa-rotate-right"></i>
@@ -83,56 +126,147 @@
                 <div class="camera-layout">
                     <!-- Left: Video Feed Canvas -->
                     <div class="video-container glass-panel">
+                        <div class="reticle-corner reticle-tl"></div>
+                        <div class="reticle-corner reticle-tr"></div>
+                        <div class="reticle-corner reticle-bl"></div>
+                        <div class="reticle-corner reticle-br"></div>
                         <div class="video-wrapper">
                             <!-- Hidden HTML5 Video tag used for capturing browser stream -->
                             <video id="webcam" width="640" height="480" autoplay playsinline muted style="display:none;"></video>
                             <!-- The HUD image populated by SocketIO -->
-                            <img id="video-feed" src="" alt="Webcam feed initialization...">
+                            <img id="video-feed" src="" alt="Awaiting camera feed initialization...">
                             <div class="scan-line"></div>
                         </div>
                     </div>
                     
-                    <!-- Right: Info & Analytics Panel -->
+                    <!-- Right: Info & Multi-Agent Telemetry Panel -->
                     <div class="info-sidebar">
+                        
+                        <!-- Main Security Verdict Card -->
                         <div class="glass-panel status-card">
-                            <h3>SYSTEM AUTHORIZATION</h3>
+                            <div class="card-header-flex">
+                                <h3>ACCESS AUTHORIZATION</h3>
+                                <span class="badge-status-pill" id="policy-badge">POLICY ENGINE</span>
+                            </div>
                             <div id="auth-status-box" class="status-box">
-                                <span id="auth-status-text">STAND BY</span>
+                                <span id="auth-status-text">SCANNING FEED...</span>
+                            </div>
+
+                            <div class="subject-card">
+                                <div class="subject-avatar">
+                                    <i class="fa-solid fa-user-shield" id="subject-icon"></i>
+                                </div>
+                                <div class="subject-details">
+                                    <span class="subject-label">IDENTIFIED CANDIDATE</span>
+                                    <h4 id="stat-name" class="subject-name">-</h4>
+                                </div>
+                                <div class="subject-match">
+                                    <span class="match-val" id="stat-score">0.0%</span>
+                                    <span class="match-label">CONFIDENCE</span>
+                                </div>
+                            </div>
+
+                            <!-- Confidence Meter Bar -->
+                            <div class="confidence-bar-wrap">
+                                <div class="confidence-bar-fill" id="confidence-bar" style="width: 0%;"></div>
+                            </div>
+
+                            <!-- Explainable AI (XAI) Natural Language Reasoner -->
+                            <div class="xai-reasoner-box">
+                                <div class="xai-header">
+                                    <i class="fa-solid fa-brain"></i>
+                                    <span>EXPLAINABLE AI (XAI) REASONING</span>
+                                </div>
+                                <p id="xai-explanation">Awaiting facial detection stream...</p>
                             </div>
                         </div>
 
-                        <div class="glass-panel stats-card">
-                            <h3>DETECTION STATISTICS</h3>
-                            <div class="stat-row">
-                                <span class="stat-label">Identity:</span>
-                                <span id="stat-name" class="stat-value">-</span>
-                            </div>
-                            <div class="stat-row">
-                                <span class="stat-label">Mask Status:</span>
-                                <span id="stat-mask" class="stat-value">-</span>
-                            </div>
-                            <div class="stat-row">
-                                <span class="stat-label">Sim Score:</span>
-                                <span id="stat-score" class="stat-value">0.000</span>
+                        <!-- 10-Agent Live Telemetry Grid -->
+                        <div class="glass-panel agent-telemetry-card">
+                            <h3>MULTI-SIGNAL AGENT TELEMETRY</h3>
+                            <div class="telemetry-grid">
+                                
+                                <!-- Quality Agent -->
+                                <div class="telem-item">
+                                    <div class="telem-header">
+                                        <span><i class="fa-solid fa-wand-magic-sparkles"></i> QUALITY</span>
+                                        <span id="stat-quality-status" class="telem-badge">--</span>
+                                    </div>
+                                    <div class="telem-value-row">
+                                        <span id="stat-quality-score" class="telem-num">0.0</span>
+                                        <span class="telem-sub">Lap. Var</span>
+                                    </div>
+                                    <div class="mini-bar-track">
+                                        <div id="quality-bar" class="mini-bar-fill" style="width: 0%;"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Mask Analysis Agent -->
+                                <div class="telem-item">
+                                    <div class="telem-header">
+                                        <span><i class="fa-solid fa-mask-face"></i> MASK COMPLIANCE</span>
+                                        <span id="stat-mask-badge" class="telem-badge">--</span>
+                                    </div>
+                                    <div class="telem-value-row">
+                                        <span id="stat-mask" class="telem-num">-</span>
+                                    </div>
+                                    <div class="mini-bar-track">
+                                        <div id="mask-bar" class="mini-bar-fill" style="width: 0%;"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Occlusion & Strategy Agent -->
+                                <div class="telem-item">
+                                    <div class="telem-header">
+                                        <span><i class="fa-solid fa-layer-group"></i> STRATEGY</span>
+                                        <span id="stat-strategy-badge" class="telem-badge">FULL</span>
+                                    </div>
+                                    <div class="telem-value-row">
+                                        <span id="stat-visibility" class="telem-num">100%</span>
+                                        <span class="telem-sub">Visibility</span>
+                                    </div>
+                                    <div class="mini-bar-track">
+                                        <div id="visibility-bar" class="mini-bar-fill" style="width: 100%;"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Liveness Anti-Spoof Agent -->
+                                <div class="telem-item">
+                                    <div class="telem-header">
+                                        <span><i class="fa-solid fa-shield-heart"></i> LIVENESS</span>
+                                        <span id="stat-liveness-status" class="telem-badge">LIVE</span>
+                                    </div>
+                                    <div class="telem-value-row">
+                                        <span id="stat-liveness-score" class="telem-num">95.0%</span>
+                                        <span class="telem-sub">Anti-Spoof</span>
+                                    </div>
+                                    <div class="mini-bar-track">
+                                        <div id="liveness-bar" class="mini-bar-fill" style="width: 95%;"></div>
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
 
-                        <!-- Real-time Compliance Doughnut Chart -->
+                        <!-- Real-time Compliance Doughnut Chart & Directives -->
                         <div class="glass-panel analytics-card">
-                            <h3>SESSION ANALYTICS</h3>
+                            <div class="card-header-flex">
+                                <h3>SESSION COMPLIANCE</h3>
+                                <span class="telem-sub" id="total-scans-text">0 total scans</span>
+                            </div>
                             <div class="chart-container" style="position: relative; height:120px; width:100%">
                                 <canvas id="complianceChart"></canvas>
                             </div>
                         </div>
 
                         <div class="glass-panel directives-card">
-                            <h3>ACCESS DIRECTIVES</h3>
+                            <h3>ACCESS POLICY DIRECTIVES</h3>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="strict-mode-toggle">
                                 <span class="slider"></span>
-                                <span class="toggle-label">Mandate Face Mask</span>
+                                <span class="toggle-label">Strict Mask Mandate</span>
                             </label>
-                            <p class="directive-desc">When enabled, unmasked faces will trigger warnings even if the user is registered.</p>
+                            <p class="directive-desc">When enabled, unmasked subjects receive violation alerts even if biometrically verified.</p>
                         </div>
                     </div>
                 </div>
@@ -141,22 +275,31 @@
             <!-- VIEW: REGISTER -->
             <section id="register-view" class="view hidden-view">
                 <header class="view-header">
-                    <h2>Enroll New Profile</h2>
-                    <p>Scan facial geometry to create a secure template database file.</p>
+                    <div class="header-badge-row">
+                        <span class="tier-pill"><i class="fa-solid fa-fingerprint"></i> 128-D EMBEDDINGS</span>
+                        <span class="tier-pill"><i class="fa-solid fa-shield-halved"></i> 5-FRAME AVERAGE</span>
+                    </div>
+                    <h2>Biometric Profile Enrollment</h2>
+                    <p>Extract mathematical facial geometry features and store encrypted unit vectors locally.</p>
                 </header>
                 
                 <div class="register-layout">
                     <div class="glass-panel form-panel">
-                        <h3>REGISTRATION METADATA</h3>
+                        <h3>SUBJECT ENROLLMENT METADATA</h3>
                         <div class="input-group">
-                            <label for="reg-name">Full Name</label>
-                            <input type="text" id="reg-name" placeholder="Enter user's name">
+                            <label for="reg-name"><i class="fa-solid fa-id-badge"></i> Subject Full Name / Identifier</label>
+                            <input type="text" id="reg-name" placeholder="e.g. Dr. Alex Morgan" autocomplete="off">
                         </div>
-                        <button id="btn-start-reg" class="btn-primary">Start Profile Acquisition</button>
+                        <button id="btn-start-reg" class="btn-primary">
+                            <i class="fa-solid fa-camera-retro"></i> Start Multi-Frame Acquisition
+                        </button>
 
                         <div class="acquisition-state">
-                            <h4>ACQUISITION STATE</h4>
-                            <p id="reg-status-text" class="highlight-text">Stand by...</p>
+                            <div class="acq-header">
+                                <h4>ACQUISITION PROGRESS</h4>
+                                <span id="reg-percentage">0%</span>
+                            </div>
+                            <p id="reg-status-text" class="highlight-text">Standing by for capture command...</p>
                             <div class="progress-bar-container">
                                 <div id="reg-progress-bar" class="progress-bar" style="width: 0%;"></div>
                             </div>
@@ -164,12 +307,36 @@
                     </div>
 
                     <div class="glass-panel instruction-panel">
-                        <h3>CALIBRATION GUIDELINES</h3>
+                        <h3>ENROLLMENT CALIBRATION PROTOCOL</h3>
                         <ul class="guidelines-list">
-                            <li><i class="fa-solid fa-person"></i> Stand still facing the camera directly.</li>
-                            <li><i class="fa-solid fa-mask-face"></i> Make sure you are <strong>UNMASKED</strong> during registration.</li>
-                            <li><i class="fa-solid fa-lightbulb"></i> Ensure the room has balanced lighting.</li>
-                            <li><i class="fa-solid fa-camera"></i> The system will auto-capture 5 face geometry samples.</li>
+                            <li>
+                                <div class="guide-icon"><i class="fa-solid fa-user"></i></div>
+                                <div>
+                                    <strong>Direct Eye-Level Gaze:</strong>
+                                    <p>Align face within the targeting reticle with minimal head tilt.</p>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="guide-icon warn"><i class="fa-solid fa-mask"></i></div>
+                                <div>
+                                    <strong>Unmasked Reference Required:</strong>
+                                    <p>Must be <em>UNMASKED</em> during enrollment so both full and periocular vectors are generated.</p>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="guide-icon"><i class="fa-solid fa-sun"></i></div>
+                                <div>
+                                    <strong>Diffused Illumination:</strong>
+                                    <p>Avoid harsh backlighting, lens glare, or intense directional shadows.</p>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="guide-icon"><i class="fa-solid fa-images"></i></div>
+                                <div>
+                                    <strong>5-Sample Consensus:</strong>
+                                    <p>The system automatically averages 5 aligned frames for superior vector stability.</p>
+                                </div>
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -177,18 +344,24 @@
 
             <!-- VIEW: DIRECTORY -->
             <section id="directory-view" class="view hidden-view">
-                <header class="view-header">
-                    <h2>User Directory</h2>
-                    <p>Manage enrolled facial identities and credential keys</p>
+                <header class="view-header directory-header">
+                    <div>
+                        <h2>Enrolled Biometric Directory</h2>
+                        <p>Manage enrolled identities, mathematical feature keys, and template vectors</p>
+                    </div>
+                    <div class="directory-search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="directory-search" placeholder="Search profiles by name...">
+                    </div>
                 </header>
                 <div class="glass-panel table-panel">
                     <table class="user-table">
                         <thead>
                             <tr>
-                                <th>Profile Name</th>
-                                <th>Full Template Status</th>
-                                <th>Upper Template Status</th>
-                                <th>Operations</th>
+                                <th>Subject Identity</th>
+                                <th>Full-Face Vector (128-D)</th>
+                                <th>Upper-Face Periocular (128-D)</th>
+                                <th>Database Operations</th>
                             </tr>
                         </thead>
                         <tbody id="directory-tbody">
@@ -200,14 +373,25 @@
 
             <!-- VIEW: LOGS -->
             <section id="logs-view" class="view hidden-view">
-                <header class="view-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <header class="view-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 12px;">
                     <div>
-                        <h2>System Log Console</h2>
-                        <p>View real-time authorization audits and system security events</p>
+                        <h2>Real-Time Security & Audit Console</h2>
+                        <p>Tamper-resistant operational event logs and biometric access audit trail</p>
                     </div>
-                    <a href="/api/export_logs" class="btn-primary" style="width:auto; padding:10px 20px; text-decoration:none;"><i class="fa-solid fa-file-excel"></i> Export Audit CSV</a>
+                    <div class="log-actions">
+                        <a href="/api/export_logs" class="btn-primary" style="width:auto; padding:9px 18px; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
+                            <i class="fa-solid fa-file-arrow-down"></i> Export Audit CSV
+                        </a>
+                    </div>
                 </header>
                 <div class="glass-panel logs-panel">
+                    <div class="logs-toolbar">
+                        <div class="log-stream-status">
+                            <span class="dot active"></span>
+                            <span>LIVE STREAM AUDIT</span>
+                        </div>
+                        <span class="log-limit-info">Showing latest 100 events</span>
+                    </div>
                     <div id="logs-container" class="terminal-logs">
                         <!-- Populated by JS -->
                     </div>
@@ -217,16 +401,21 @@
             <!-- VIEW: SETTINGS -->
             <section id="settings-view" class="view hidden-view">
                 <header class="view-header">
-                    <h2>Calibration & Settings</h2>
-                    <p>Fine-tune deep neural network confidence bounds and clear memory caches</p>
+                    <h2>Engine Calibration & Diagnostics</h2>
+                    <p>Adjust neural inference parameters, confidence margins, and vector storage caches</p>
                 </header>
                 
                 <div class="glass-panel settings-panel">
                     
                     <div class="setting-item">
                         <div class="setting-info">
-                            <h3>Biometric Matching Sensitivity</h3>
-                            <p>Adjusting this value dictates the matching tolerance (SFace Cosine Threshold). Recommended: 0.363.</p>
+                            <h3>SFace Cosine Similarity Threshold</h3>
+                            <p>Threshold for positive identity matching. Lower values require stricter feature agreement.</p>
+                            <div class="threshold-presets">
+                                <span class="preset-badge" data-threshold="0.32">Strict (0.320)</span>
+                                <span class="preset-badge active" data-threshold="0.363">Recommended (0.363)</span>
+                                <span class="preset-badge" data-threshold="0.42">Permissive (0.420)</span>
+                            </div>
                         </div>
                         <div class="setting-control">
                             <input type="range" id="threshold-slider" min="0.15" max="0.60" step="0.001" value="0.363">
@@ -236,22 +425,42 @@
 
                     <div class="setting-item">
                         <div class="setting-info">
-                            <h3>Webcam Scanner Refresh Skips</h3>
-                            <p>Configure how frequently the neural network runs checks. Skipping frames decreases CPU burden.</p>
+                            <h3>Inference Frame Stride Rate</h3>
+                            <p>Configure pipeline execution interval. Stride of 2-3 frames significantly reduces CPU load while maintaining high responsiveness.</p>
                         </div>
                         <div class="setting-control">
-                            <input type="range" id="interval-slider" min="1" max="10" step="1" value="3">
-                            <span id="interval-val">3 frames</span>
+                            <input type="range" id="interval-slider" min="1" max="10" step="1" value="2">
+                            <span id="interval-val">2 frames</span>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h3>Hardware & Neural Architecture Info</h3>
+                            <p>Local edge inference runtime diagnostics.</p>
+                        </div>
+                        <div class="model-info-grid">
+                            <div class="model-chip">
+                                <strong>Detector:</strong> YuNet MobileNet DNN (640x480)
+                            </div>
+                            <div class="model-chip">
+                                <strong>Biometrics:</strong> SFace (128-D Float32 Cosine Metric)
+                            </div>
+                            <div class="model-chip">
+                                <strong>Classifier:</strong> MobileNetV2 ONNX (Softmax)
+                            </div>
                         </div>
                     </div>
 
                     <div class="setting-item danger-zone">
                         <div class="setting-info">
-                            <h3>Database Administration</h3>
-                            <p>Completely erase the MFR database. All enrolled user profiles will be deleted permanently.</p>
+                            <h3>Vector Database Master Reset</h3>
+                            <p>Permanently flush all enrolled identities from `db.json`. This action is irreversible.</p>
                         </div>
                         <div class="setting-control">
-                            <button id="btn-wipe-db" class="btn-danger"><i class="fa-solid fa-trash"></i> Wipe Database</button>
+                            <button id="btn-wipe-db" class="btn-danger">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Wipe Database
+                            </button>
                         </div>
                     </div>
 
