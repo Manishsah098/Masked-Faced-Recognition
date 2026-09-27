@@ -77,6 +77,7 @@ def initialize_orchestrator():
     log_event("MFR-X: Initializing Multi-Agent Biometric Orchestrator...")
     try:
         state.orchestrator = mfr.BiometricOrchestrator(models_dir="models", db_path="db.json")
+        state.orchestrator.recognition_agent.db = state.db
         log_event("MFR-X: 10 AI Specialized Agents Loaded Successfully.")
     except Exception as e:
         log_event(f"ERROR: Failed to initialize Biometric Orchestrator: {e}")
@@ -282,10 +283,12 @@ def api_settings():
 
 @app.route('/api/wipe_db', methods=['POST'])
 def api_wipe_db():
-    if os.path.exists("db.json"):
-        os.remove("db.json")
     state.db = mfr.Database("db.json")
-    log_event("DATABASE: Cleared facial biometric database file.")
+    state.db.users = {}
+    state.db.save()
+    if state.orchestrator:
+        state.orchestrator.recognition_agent.db = state.db
+    log_event("DATABASE: Cleared all registered user profiles from database.")
     return jsonify({"success": True})
 
 @app.route('/api/export_logs')
