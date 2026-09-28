@@ -11,14 +11,15 @@ class MaskAnalysisAgent:
 
     def process(self, frame, face_payload):
         box = face_payload['box']
-        label, confidence = self.detector.predict(frame, box)
+        landmarks = face_payload.get('landmarks')
+        label, confidence = self.detector.predict(frame, box, landmarks=landmarks)
 
         # Estimate coverage based on class and confidence
         if label == "Masked":
-            coverage = float(min(100.0, max(60.0, confidence * 100.0)))
+            coverage = float(min(100.0, max(65.0, confidence * 100.0)))
             status = "Proper Mask"
         else:
-            coverage = float(max(0.0, (1.0 - confidence) * 40.0))
+            coverage = float(max(0.0, (1.0 - confidence) * 35.0))
             status = "No Mask"
 
         return {
