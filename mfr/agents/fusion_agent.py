@@ -20,13 +20,19 @@ class FusionAgent:
         if candidate == "Unknown" or not is_match:
             calibrated_confidence = max(0.0, rec_score * 0.5)
         else:
+            # When masked, normalize occlusion contribution based on upper-face visible ratio
+            if mask_p.get('is_masked', False):
+                norm_occlusion = min(100.0, (occlusion_pct / 63.0) * 100.0)
+            else:
+                norm_occlusion = occlusion_pct
+
             # Calibrated weighted score
             calibrated_confidence = float(np.round(
-                0.45 * rec_score +
+                0.50 * rec_score +
                 0.20 * live_score +
                 0.15 * qual_score +
                 0.10 * temp_stability +
-                0.10 * occlusion_pct,
+                0.05 * norm_occlusion,
                 1
             ))
 
