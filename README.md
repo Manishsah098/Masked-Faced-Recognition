@@ -18,7 +18,7 @@
 
 </div>
 
-## 📌 Executive Summary status
+## 📌 Executive Summary
 
 Facial recognition accuracy plummets in real-world conditions when subjects wear surgical or N95 masks, hats, sunglasses, or experience harsh directional illumination and presentation spoof attacks. Monolithic neural networks process entire faces unconditionally, leading to opaque failures, false positives, and excessive compute overhead.
 
